@@ -28,3 +28,16 @@ func unhandledError2() error {
 	_ = os.Chdir("..")
 	return err
 }
+
+type fixtureConcreteError struct{}
+
+func (*fixtureConcreteError) Error() string { return "fixture" }
+
+func ignoredConcreteError() *fixtureConcreteError { return nil }
+
+func ignoredTupleConcreteError() (int, *fixtureConcreteError) { return 0, nil }
+
+func unhandledConcreteError() {
+	ignoredConcreteError()      // MATCH /Unhandled error in call to function ignoredConcreteError/
+	ignoredTupleConcreteError() // MATCH /Unhandled error in call to function ignoredTupleConcreteError/
+}
