@@ -76,6 +76,10 @@ func TestPackageDirectoryMismatchWithTestDirectories(t *testing.T) {
 
 	testRule(t, "package_directory_mismatch/testinfo/good", &rule.PackageDirectoryMismatchRule{}, config)
 	testRule(t, "package_directory_mismatch/testutils/good", &rule.PackageDirectoryMismatchRule{}, config)
+
+	// Ignoring a directory must not suppress similarly named sibling directories.
+	prefixConfig := &lint.RuleConfig{Arguments: lint.Arguments{map[string]any{"ignore-directories": []any{"target"}}}}
+	testRule(t, "package_directory_mismatch/targeted/wrong", &rule.PackageDirectoryMismatchRule{}, prefixConfig)
 }
 
 func TestPackageDirectoryMismatchWithMultipleDirectories(t *testing.T) {
