@@ -103,12 +103,12 @@ var _ lint.ConfigurableRule = (*StructTagRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *StructTagRule) Configure(arguments lint.Arguments) error {
+	r.userDefined = map[tagKey][]string{}
+	r.omittedTags = map[tagKey]struct{}{}
 	if len(arguments) == 0 {
 		return nil
 	}
 
-	r.userDefined = map[tagKey][]string{}
-	r.omittedTags = map[tagKey]struct{}{}
 	for _, arg := range arguments {
 		item, ok := arg.(string)
 		if !ok {

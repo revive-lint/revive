@@ -46,3 +46,11 @@ func TestStructTagWithOmittedTags(t *testing.T) {
 func TestStructTagAfterGo1_24(t *testing.T) {
 	testRule(t, "go1.24/struct_tag", &rule.StructTagRule{})
 }
+
+func TestStructTagConfigureResetsPreviousOptions(t *testing.T) {
+	r := &rule.StructTagRule{}
+	testRule(t, "struct_tag_config_reset", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{"validate,myOption"},
+	})
+	testRule(t, "struct_tag_config_reset_ok", r)
+}
