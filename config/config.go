@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"slices"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -130,12 +129,30 @@ var allRules = append([]lint.Rule{
 
 // AllRules returns a copy of the list of all rules registered in revive.
 func AllRules() []lint.Rule {
-	return slices.Clone(allRules)
+	return cloneRules(allRules)
 }
 
 // DefaultRules returns a copy of the list of rules that are enabled by default.
 func DefaultRules() []lint.Rule {
-	return slices.Clone(defaultRules)
+	return cloneRules(defaultRules)
+}
+
+// cloneRules returns fresh zero-value instances of the registered built-in rule types.
+// Rule configuration mutates instances, so the registrations must only be used as prototypes.
+func cloneRules(rules []lint.Rule) []lint.Rule {
+	clones := make([]lint.Rule, len(rules))
+	for i, r := range rules {
+		clones[i] = cloneRule(r)
+	}
+	return clones
+}
+
+func cloneRule(r lint.Rule) lint.Rule {
+	t := reflect.TypeOf(r)
+	if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct {
+		return reflect.New(t.Elem()).Interface().(lint.Rule)
+	}
+	return r
 }
 
 // EnabledRules returns the rules that are enabled in the given configuration.
@@ -145,7 +162,7 @@ func EnabledRules(config *lint.Config) []lint.Rule {
 	}
 	rulesByName := make(map[string]lint.Rule, len(allRules))
 	for _, r := range allRules {
-		rulesByName[r.Name()] = r
+		rulesByName[r.Name()] = cloneRule(r)
 	}
 	var rules []lint.Rule
 	for name, c := range config.Rules {
@@ -185,7 +202,7 @@ func getFormatters() map[string]lint.Formatter {
 func GetLintingRules(config *lint.Config, extraRules []lint.Rule) ([]lint.Rule, error) {
 	rulesMap := map[string]lint.Rule{}
 	for _, r := range allRules {
-		rulesMap[r.Name()] = r
+		rulesMap[r.Name()] = cloneRule(r)
 	}
 	for _, r := range extraRules {
 		if _, ok := rulesMap[r.Name()]; ok {
