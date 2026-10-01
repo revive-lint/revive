@@ -208,6 +208,7 @@ var _ lint.ConfigurableRule = (*AddConstantRule)(nil)
 func (r *AddConstantRule) Configure(arguments lint.Arguments) error {
 	r.strLitLimit = defaultStrLitLimit
 	r.allowList = newAllowList()
+	r.ignoreFunctions = nil
 	if len(arguments) == 0 {
 		return nil
 	}
