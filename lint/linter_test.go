@@ -1,6 +1,7 @@
 package lint_test
 
 import (
+	"go/token"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,7 +15,11 @@ type goVersionRule struct{}
 func (*goVersionRule) Name() string { return "go-version" }
 
 func (*goVersionRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
-	return []lint.Failure{{Confidence: 1, Failure: file.Pkg.GoVersion().String()}}
+	return []lint.Failure{{
+		Confidence: 1,
+		Failure:    file.Pkg.GoVersion().String(),
+		Position:   lint.FailurePosition{Start: token.Position{Filename: file.Name}},
+	}}
 }
 
 func TestLint_goVersionFromModFile(t *testing.T) {
@@ -49,6 +54,45 @@ func TestLint_goVersionFromModFile(t *testing.T) {
 			t.Errorf("detected Go version %q, want %q", got, want)
 		}
 	})
+}
+
+func TestLint_goVersionFromNestedModule(t *testing.T) {
+	rootDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(rootDir, "go.mod"), []byte("module example.com/root\n\ngo 1.21\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	nestedDir := filepath.Join(rootDir, "nested")
+	if err := os.MkdirAll(nestedDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nestedDir, "go.mod"), []byte("module example.com/root/nested\n\ngo 1.26\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	rootFile := filepath.Join(rootDir, "root.go")
+	nestedFile := filepath.Join(nestedDir, "nested.go")
+	files := map[string][]byte{
+		rootFile:   []byte("package foo\n"),
+		nestedFile: []byte("package foo\n"),
+	}
+	for _, packages := range [][][]string{{{rootFile}, {nestedFile}}, {{nestedFile}, {rootFile}}} {
+		l := lint.New(func(path string) ([]byte, error) { return files[path], nil }, 0)
+		failures, err := l.Lint(packages, []lint.Rule{&goVersionRule{}}, lint.Config{})
+		if err != nil {
+			t.Fatal("unexpected error from linting:", err)
+		}
+
+		got := make(map[string]string, len(files))
+		for failure := range failures {
+			got[failure.Position.Start.Filename] = failure.Failure
+		}
+		if got[rootFile] != "1.21.0" {
+			t.Errorf("root module Go version = %q, want %q", got[rootFile], "1.21.0")
+		}
+		if got[nestedFile] != "1.26.0" {
+			t.Errorf("nested module Go version = %q, want %q", got[nestedFile], "1.26.0")
+		}
+	}
 }
 
 func TestLint_skipsGeneratedFiles(t *testing.T) {
