@@ -2,6 +2,8 @@ package fixtures
 
 import "fmt"
 
+type namedIntMap map[int]string
+
 func inefficientMapLookup() {
 	type aS struct {
 		TagIDs map[int]string
@@ -11,6 +13,13 @@ func inefficientMapLookup() {
 	// use case from issue #1447
 	for id := range a.TagIDs { // MATCH /inefficient lookup of map key/
 		if id == someStaticValue {
+			return
+		}
+	}
+
+	var namedMap namedIntMap
+	for key := range namedMap { // MATCH /inefficient lookup of map key/
+		if key == someStaticValue {
 			return
 		}
 	}
