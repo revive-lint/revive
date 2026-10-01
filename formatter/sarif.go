@@ -70,7 +70,7 @@ func (l *reviveRunLog) addRules(cfg map[string]lint.RuleConfig) {
 
 		if driver.Rules == nil {
 			driver.Rules = []*garif.ReportingDescriptor{rule}
-			return
+			continue
 		}
 
 		driver.Rules = append(driver.Rules, rule)
