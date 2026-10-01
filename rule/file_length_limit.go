@@ -76,6 +76,10 @@ var _ lint.ConfigurableRule = (*FileLengthLimitRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *FileLengthLimitRule) Configure(arguments lint.Arguments) error {
+	r.max = 0
+	r.skipComments = false
+	r.skipBlankLines = false
+
 	if len(arguments) < 1 {
 		return nil // use default
 	}
