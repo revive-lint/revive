@@ -103,17 +103,31 @@ func (w *lintAddConstantRule) Visit(node ast.Node) ast.Visitor {
 
 func (w *lintAddConstantRule) checkFunc(expr *ast.CallExpr) {
 	fName := w.getFuncName(expr)
-
 	for _, arg := range expr.Args {
-		switch t := arg.(type) {
-		case *ast.CallExpr:
-			w.checkFunc(t)
-		case *ast.BasicLit:
-			if w.isIgnoredFunc(fName) {
-				continue
+		ast.Inspect(arg, func(node ast.Node) bool {
+			switch n := node.(type) {
+			case *ast.CallExpr:
+				w.checkFunc(n)
+				return false
+			case *ast.FuncLit:
+				ast.Walk(w, n.Body)
+				return false
+			case *ast.StructType:
+				if n.Fields != nil {
+					for _, field := range n.Fields.List {
+						if field.Tag != nil {
+							w.structTags[field.Tag] = struct{}{}
+						}
+					}
+				}
+			case *ast.BasicLit:
+				if !w.isIgnoredFunc(fName) && !w.isStructTag(n) {
+					w.checkLit(n)
+				}
+				return false
 			}
-			w.checkLit(t)
-		}
+			return true
+		})
 	}
 }
 

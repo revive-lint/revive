@@ -11,6 +11,10 @@ func TestAddConstantWithDefaultArguments(t *testing.T) {
 	testRule(t, "add_constant_default", &rule.AddConstantRule{}, &lint.RuleConfig{})
 }
 
+func TestAddConstantNestedCallExpression(t *testing.T) {
+	testRule(t, "add_constant_nested_call", &rule.AddConstantRule{}, &lint.RuleConfig{})
+}
+
 func TestAddConstantWithArguments(t *testing.T) {
 	testRule(t, "add_constant", &rule.AddConstantRule{}, &lint.RuleConfig{
 		Arguments: lint.Arguments{map[string]any{
