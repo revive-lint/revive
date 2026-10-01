@@ -37,6 +37,14 @@ func TestLintFileHeader(t *testing.T) {
 	})
 }
 
+func TestFileHeaderConfigureResetsPreviousHeader(t *testing.T) {
+	r := &rule.FileHeaderRule{}
+	testRule(t, "lint_file_header1", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{"foobar"},
+	})
+	testRule(t, "lint_file_header_default", r)
+}
+
 func BenchmarkLintFileHeader(b *testing.B) {
 	for b.Loop() {
 		testRule(b, "lint_file_header1", &rule.FileHeaderRule{}, &lint.RuleConfig{

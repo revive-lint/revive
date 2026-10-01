@@ -24,6 +24,7 @@ var _ lint.ConfigurableRule = (*FileHeaderRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *FileHeaderRule) Configure(arguments lint.Arguments) error {
+	r.header = ""
 	if len(arguments) < 1 {
 		return nil
 	}
