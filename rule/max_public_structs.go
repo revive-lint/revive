@@ -79,6 +79,10 @@ type lintMaxPublicStructs struct {
 
 func (w *lintMaxPublicStructs) Visit(n ast.Node) ast.Visitor {
 	if v, ok := n.(*ast.TypeSpec); ok {
+		if _, ok := v.Type.(*ast.StructType); !ok {
+			return w
+		}
+
 		name := v.Name.Name
 		first := string(name[0])
 		if strings.ToUpper(first) == first {
