@@ -6,6 +6,8 @@ import (
 	"go/token"
 )
 
+func funLengthEmpty() {}
+
 func funLengthA() (a int) { // MATCH /maximum number of statements per function exceeded; max 2 but got 5/
 	println()
 	println()
