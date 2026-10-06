@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"strings"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -78,12 +77,8 @@ type lintMaxPublicStructs struct {
 }
 
 func (w *lintMaxPublicStructs) Visit(n ast.Node) ast.Visitor {
-	if v, ok := n.(*ast.TypeSpec); ok {
-		name := v.Name.Name
-		first := string(name[0])
-		if strings.ToUpper(first) == first {
-			w.current++
-		}
+	if v, ok := n.(*ast.TypeSpec); ok && ast.IsExported(v.Name.Name) {
+		w.current++
 	}
 	return w
 }
