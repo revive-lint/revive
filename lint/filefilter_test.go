@@ -33,6 +33,35 @@ func TestFileFilter(t *testing.T) {
 		}
 	})
 
+	t.Run("glob with regexp metacharacters", func(t *testing.T) {
+		ff, err := lint.ParseFileFilter("pkg/a|b*.go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !ff.MatchFileName("pkg/a|bc.go") {
+			t.Fatal("should match pkg/a|bc.go")
+		}
+		if ff.MatchFileName("pkg/alpha/unrelated.go") {
+			t.Fatal("should not match pkg/alpha/unrelated.go")
+		}
+		if ff.MatchFileName("zzz/xb.go") {
+			t.Fatal("should not match zzz/xb.go")
+		}
+	})
+
+	t.Run("glob with windows separators", func(t *testing.T) {
+		ff, err := lint.ParseFileFilter(`pkg\x*.go`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !ff.MatchFileName("pkg/xy.go") {
+			t.Fatal("should match pkg/xy.go")
+		}
+		if ff.MatchFileName("pkg/y.go") {
+			t.Fatal("should not match pkg/y.go")
+		}
+	})
+
 	t.Run("regex", func(t *testing.T) {
 		ff, err := lint.ParseFileFilter("~b/[cd].go$")
 		if err != nil {
