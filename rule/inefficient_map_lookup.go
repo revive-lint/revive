@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"strings"
+	"go/types"
 
 	"github.com/mgechev/revive/internal/astutils"
 	"github.com/mgechev/revive/lint"
@@ -170,5 +170,9 @@ func (w *lintInefficientMapLookup) isRangeOverMapKey(stmt ast.Stmt) bool {
 
 	// Check if we range over a map
 	t := w.file.Pkg.TypeOf(rangeStmt.X)
-	return t != nil && strings.HasPrefix(t.String(), "map[")
+	if t == nil {
+		return false
+	}
+	_, ok = t.Underlying().(*types.Map)
+	return ok
 }
