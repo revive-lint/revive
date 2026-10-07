@@ -87,22 +87,18 @@ func (w *lintUnhandledErrors) Visit(node ast.Node) ast.Visitor {
 			return nil // skip, type info not available
 		}
 
-		switch t := funcType.(type) {
-		case *types.Named:
-			if !w.isTypeError(t) {
-				return nil // func call does not return an error
-			}
-
+		if w.implementsError(funcType) {
 			w.addFailure(fCall)
-		default:
-			retTypes, ok := funcType.Underlying().(*types.Tuple)
-			if !ok {
-				return nil // skip, unable to retrieve return type of the called function
-			}
+			return nil
+		}
 
-			if w.returnsAnError(retTypes) {
-				w.addFailure(fCall)
-			}
+		retTypes, ok := funcType.Underlying().(*types.Tuple)
+		if !ok {
+			return nil // skip, unable to retrieve return type of the called function
+		}
+
+		if w.returnsAnError(retTypes) {
+			w.addFailure(fCall)
 		}
 	}
 	return w
@@ -150,16 +146,14 @@ func (w *lintUnhandledErrors) isIgnoredFunc(funcName string) bool {
 	return false
 }
 
-func (*lintUnhandledErrors) isTypeError(t *types.Named) bool {
-	const errorTypeName = "_.error"
-
-	return t.Obj().Id() == errorTypeName
+func (*lintUnhandledErrors) implementsError(t types.Type) bool {
+	errorInterface := types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+	return types.Implements(t, errorInterface)
 }
 
 func (w *lintUnhandledErrors) returnsAnError(tt *types.Tuple) bool {
 	for v := range tt.Variables() {
-		nt, ok := v.Type().(*types.Named)
-		if ok && w.isTypeError(nt) {
+		if w.implementsError(v.Type()) {
 			return true
 		}
 	}
