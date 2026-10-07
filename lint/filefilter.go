@@ -118,12 +118,9 @@ func (ff *FileFilter) prepareRegexp() error {
 		return nil
 	}
 
-	// it's whole file mask, just escape dots and normalize separators
-	fillRx := src
-	fillRx = strings.ReplaceAll(fillRx, "\\", "/")
-	fillRx = strings.ReplaceAll(fillRx, ".", `\.`)
-	fillRx = "^" + fillRx + "$"
-	ff.rx, err = regexp.Compile(fillRx)
+	// it's whole file mask: normalize separators and match it literally
+	fillRx := regexp.QuoteMeta(strings.ReplaceAll(src, "\\", "/"))
+	ff.rx, err = regexp.Compile("^" + fillRx + "$")
 	if err != nil {
 		return fmt.Errorf("invalid file filter [%s], regexp compile full path: [%w]", ff.raw, err)
 	}

@@ -20,6 +20,19 @@ func TestFileFilter(t *testing.T) {
 		}
 	})
 
+	t.Run("whole file name with regexp metacharacters", func(t *testing.T) {
+		ff, err := lint.ParseFileFilter("pkg/a+(b)[c].go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !ff.MatchFileName("pkg/a+(b)[c].go") {
+			t.Fatal("should match pkg/a+(b)[c].go")
+		}
+		if ff.MatchFileName("pkg/aa(b)c.go") {
+			t.Fatal("should not match pkg/aa(b)c.go")
+		}
+	})
+
 	t.Run("regex", func(t *testing.T) {
 		ff, err := lint.ParseFileFilter("~b/[cd].go$")
 		if err != nil {
