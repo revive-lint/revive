@@ -3,6 +3,8 @@ package formatter
 import (
 	"bytes"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"codeberg.org/chavacava/garif"
@@ -63,17 +65,10 @@ func newReviveRunLog(cfg lint.Config) *reviveRunLog {
 }
 
 func (l *reviveRunLog) addRules(cfg map[string]lint.RuleConfig) {
-	for name, ruleCfg := range cfg {
+	for _, name := range slices.Sorted(maps.Keys(cfg)) {
 		rule := garif.NewRule(name).WithHelpUri(reviveSite + "/r#" + name)
-		setRuleProperties(rule, ruleCfg)
-		driver := l.run.Tool.Driver
-
-		if driver.Rules == nil {
-			driver.Rules = []*garif.ReportingDescriptor{rule}
-			return
-		}
-
-		driver.Rules = append(driver.Rules, rule)
+		setRuleProperties(rule, cfg[name])
+		l.run.Tool.Driver.Rules = append(l.run.Tool.Driver.Rules, rule)
 	}
 }
 

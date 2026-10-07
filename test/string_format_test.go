@@ -43,3 +43,13 @@ func TestStringFormatDuplicatedStrings(t *testing.T) {
 		}},
 	})
 }
+
+func TestStringFormatConfigureResetsPreviousRules(t *testing.T) {
+	r := &rule.StringFormatRule{}
+	testRule(t, "string_format_config_reset", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{[]any{"fmt.Errorf[0]", "/^good$/", "old configuration was applied"}},
+	})
+	testRule(t, "string_format_config_reset_ok", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{[]any{"errors.New[0]", "/^good$/"}},
+	})
+}
