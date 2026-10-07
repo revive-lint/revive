@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mgechev/dots"
+	"github.com/revive-lint/dots"
 
 	"github.com/mgechev/revive/config"
 	"github.com/mgechev/revive/lint"

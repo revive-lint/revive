@@ -50,3 +50,25 @@ func TestImportAliasNaming_CustomConfigWithOnlyDeny(t *testing.T) {
 		},
 	})
 }
+
+func TestImportAliasNaming_Reconfigure(t *testing.T) {
+	r := &rule.ImportAliasNamingRule{}
+	testRule(t, "import_alias_naming_custom_config_with_only_deny", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{
+			map[string]any{
+				"denyRegex": `^((v\d+)|(v\d+alpha\d+))$`,
+			},
+		},
+	})
+	testRule(t, "import_alias_naming", r)
+	testRule(t, "import_alias_naming_custom_config_with_only_deny", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{
+			map[string]any{
+				"denyRegex": `^((v\d+)|(v\d+alpha\d+))$`,
+			},
+		},
+	})
+	testRule(t, "import_alias_naming_custom_config", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{`^[a-z]+$`},
+	})
+}

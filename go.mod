@@ -8,7 +8,7 @@ require (
 	github.com/fatih/color v1.19.0
 	github.com/fatih/structtag v1.2.0
 	github.com/hashicorp/go-version v1.9.0
-	github.com/mgechev/dots v1.0.0
+	github.com/revive-lint/dots v1.1.0
 	github.com/spf13/afero v1.15.0
 	golang.org/x/mod v0.41.0
 	golang.org/x/sync v0.23.0
