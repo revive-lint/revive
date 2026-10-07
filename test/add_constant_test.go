@@ -31,3 +31,11 @@ func TestAddConstantWithArguments(t *testing.T) {
 		}},
 	})
 }
+
+func TestAddConstantConfigureResetsIgnoredFunctions(t *testing.T) {
+	r := &rule.AddConstantRule{}
+	testRule(t, "add_constant_config_reset", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{map[string]any{"ignoreFuncs": `fmt\.Print`}},
+	})
+	testRule(t, "add_constant_config_reset_ok", r)
+}

@@ -36,6 +36,11 @@ func bar() {
 		a++
 	}
 
+	switch a { // MATCH /switch with only one case can be replaced by an if-then/
+	case 1:
+		a++
+	}
+
 loop:
 	for {
 		switch a {
@@ -52,4 +57,21 @@ loop:
 	}
 
 	return // MATCH /omit unnecessary return statement/
+}
+
+func defaultOnly(a any) {
+	switch {
+	default:
+		println("always")
+	}
+
+	switch a {
+	default:
+		println("always")
+	}
+
+	switch a.(type) {
+	default:
+		println("always")
+	}
 }
