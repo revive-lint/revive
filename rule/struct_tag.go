@@ -64,11 +64,28 @@ var tagCheckers = map[tagKey]tagChecker{
 }
 
 type checkContext struct {
-	userDefined    map[tagKey][]string // map: key -> []option
-	usedTagNbr     map[int]bool        // list of used tag numbers
-	usedTagName    map[string]bool     // list of used tag keys
-	commonOptions  map[string]bool     // list of options defined for all fields
+	userDefined    map[tagKey][]string     // map: key -> []option
+	usedTagNbr     map[tagKey]map[int]bool // used tag numbers, per tag key
+	usedTagName    map[string]bool         // list of used tag keys
+	commonOptions  map[string]bool         // list of options defined for all fields
 	isAtLeastGo124 bool
+}
+
+// useTagNbr reports whether number was already used by another field for the given tag key
+// and marks it as used otherwise. Each tag key has its own numbering namespace.
+func (checkCtx *checkContext) useTagNbr(key tagKey, number int) (alreadyUsed bool) {
+	numbers := checkCtx.usedTagNbr[key]
+	if numbers == nil {
+		numbers = map[int]bool{}
+		checkCtx.usedTagNbr[key] = numbers
+	}
+
+	if numbers[number] {
+		return true
+	}
+
+	numbers[number] = true
+	return false
 }
 
 func (checkCtx *checkContext) isUserDefined(key tagKey, opt string) bool {
@@ -175,7 +192,7 @@ func (w lintStructTagRule) Visit(node ast.Node) ast.Visitor {
 
 		checkCtx := &checkContext{
 			userDefined:    w.userDefined,
-			usedTagNbr:     map[int]bool{},
+			usedTagNbr:     map[tagKey]map[int]bool{},
 			usedTagName:    map[string]bool{},
 			isAtLeastGo124: w.isAtLeastGo124,
 		}
@@ -330,10 +347,9 @@ func checkCompoundANS1Option(checkCtx *checkContext, opt string, fieldType ast.E
 		if err != nil {
 			return fmt.Sprintf("tag must be a number but is %q", value), false
 		}
-		if checkCtx.usedTagNbr[number] {
+		if checkCtx.useTagNbr(keyASN1, number) {
 			return fmt.Sprintf(msgDuplicatedTagNumber, number), false
 		}
-		checkCtx.usedTagNbr[number] = true
 	case "default":
 		if !typeValueMatch(fieldType, value) {
 			return msgTypeMismatch, false
@@ -404,12 +420,10 @@ func checkCborTag(checkCtx *checkContext, tag *structtag.Tag, _ *ast.Field) (mes
 				return `tag name for option "keyasint" should be an integer`, false
 			}
 
-			_, ok := checkCtx.usedTagNbr[intKey]
-			if ok {
+			if checkCtx.useTagNbr(keyCbor, intKey) {
 				return fmt.Sprintf("duplicated integer key %d", intKey), false
 			}
 
-			checkCtx.usedTagNbr[intKey] = true
 			hasKeyAsInt = true
 			continue
 
@@ -574,11 +588,9 @@ func checkProtobufOptions(checkCtx *checkContext, options []string) (message str
 		opt, _, _ := strings.Cut(opt, "=")
 
 		if number, err := strconv.Atoi(opt); err == nil {
-			_, alreadySeen := checkCtx.usedTagNbr[number]
-			if alreadySeen {
+			if checkCtx.useTagNbr(keyProtobuf, number) {
 				return fmt.Sprintf(msgDuplicatedTagNumber, number), false
 			}
-			checkCtx.usedTagNbr[number] = true
 			continue // option is an integer
 		}
 

@@ -238,3 +238,11 @@ type Cbor struct {
 	InputsOk2  string `cbor:"inputs,omitempty"`
 	OutputsOk2 string `cbor:",toarray"`
 }
+
+// Tag numbers of asn1, cbor and protobuf live in separate namespaces,
+// so reusing the same number across them is not a duplicate.
+type CrossFormatTagNumbers struct {
+	A int    `asn1:"tag:1"`
+	B string `cbor:"1,keyasint"`
+	C *int32 `protobuf:"varint,1,opt,name=c"`
+}
