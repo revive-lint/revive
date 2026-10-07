@@ -32,6 +32,11 @@ var _ lint.ConfigurableRule = (*VarNamingRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *VarNamingRule) Configure(arguments lint.Arguments) error {
+	r.allowList = nil
+	r.blockList = nil
+	r.allowUpperCaseConst = false
+	r.skipInitialismNameChecks = false
+
 	if len(arguments) >= 1 {
 		list, err := getList(arguments[0], "allowlist")
 		if err != nil {

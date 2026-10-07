@@ -105,6 +105,8 @@ Line length in this and other Markdown files is capped at 150 characters (200 in
 - Don't introduce assertion libraries (`testify`, `gomega`, …) — the project uses the standard `testing` package by design.
 - Don't reformat or restructure files unrelated to the change. Keep diffs reviewable.
 - Don't edit generated TOCs in `README.md` / `RULES_DESCRIPTIONS.md` by hand.
+- Don't let `Configure` keep state from a previous call: rules are singletons and may be configured more than once,
+  so reset every configurable field to its default before reading the arguments, even on the empty-arguments early return.
 - Don't add a rule to `untyped.toml` unless you've verified it really doesn't touch type info —
   getting this wrong silently breaks the untyped fast path.
 

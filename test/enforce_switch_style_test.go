@@ -19,3 +19,11 @@ func TestEnforceSwitchStyle(t *testing.T) {
 		Arguments: lint.Arguments{"allow-no-default", "allow-default-not-last"},
 	})
 }
+
+func TestEnforceSwitchStyleConfigureResetsPreviousOptions(t *testing.T) {
+	r := &rule.EnforceSwitchStyleRule{}
+	testRule(t, "enforce_switch_style_allow_no_default_allow_not_last", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{"allow-no-default", "allow-default-not-last"},
+	})
+	testRule(t, "enforce_switch_style", r)
+}

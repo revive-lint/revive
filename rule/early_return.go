@@ -24,6 +24,9 @@ var _ lint.ConfigurableRule = (*EarlyReturnRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (e *EarlyReturnRule) Configure(arguments lint.Arguments) error {
+	e.preserveScope = false
+	e.allowJump = false
+
 	for _, arg := range arguments {
 		sarg, ok := arg.(string)
 		if !ok {
