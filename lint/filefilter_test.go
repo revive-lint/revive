@@ -62,6 +62,13 @@ func TestFileFilter(t *testing.T) {
 		}
 	})
 
+	t.Run("whole file name with invalid UTF-8", func(t *testing.T) {
+		_, err := lint.ParseFileFilter("pkg/\xff.go")
+		if err == nil {
+			t.Fatal("should return an error, not panic")
+		}
+	})
+
 	t.Run("regex", func(t *testing.T) {
 		ff, err := lint.ParseFileFilter("~b/[cd].go$")
 		if err != nil {

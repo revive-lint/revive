@@ -114,6 +114,9 @@ func (ff *FileFilter) prepareRegexp() error {
 	}
 
 	// it's whole file mask: match it literally
-	ff.rx = regexp.MustCompile("^" + regexp.QuoteMeta(src) + "$")
+	ff.rx, err = regexp.Compile("^" + regexp.QuoteMeta(src) + "$")
+	if err != nil {
+		return fmt.Errorf("invalid file filter [%s], regexp compile full path: [%w]", ff.raw, err)
+	}
 	return nil
 }
