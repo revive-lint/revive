@@ -43,9 +43,26 @@ are the canonical examples; [`AGENTS.md`](../../AGENTS.md) §4 points here.
   this keeps rule configuration extensible and self-documenting.
 - Defaults are constants in the rule file (see `defaultArgumentsLimit`) and are applied in `Configure` when arguments are missing.
   Bundle-level defaults live in `defaults.toml` / `revive.toml`.
-- `Configure` resets every configurable field to its default before reading the arguments. Rules in `allRules` are singletons and
+- `Configure` resets every configurable field to its default **before** reading the arguments. Rules in `allRules` are singletons and
   `GetLintingRules` may call `Configure` on the same instance more than once, so an option omitted in a later call must not keep
   the value set by an earlier one.
+
+  ```golang
+  func (r *SomeRule) Configure(arguments lint.Arguments) error {
+      r.max = defaultMax        // reset scalars, maps and slices here,
+      r.ignore = nil            // before any early return,
+      r.allow = nil             // and for every field, not just the ones below.
+
+      if len(arguments) < 1 {
+          return nil // early return must not skip the reset above
+      }
+      ...
+      r.ignore = append(r.ignore, parsed...) // appending to a non-reset slice keeps stale entries
+      ...
+  }
+  ```
+
+  Assigning a field only when its key is present in the argument map has the same effect: the previous value survives.
 - `Apply` runs concurrently across files: it never mutates rule state. State is only set in `Configure`.
 
 ## Failures
@@ -73,6 +90,9 @@ are the canonical examples; [`AGENTS.md`](../../AGENTS.md) §4 points here.
 - `test/<rule_name>_test.go` exists and uses the shared `testRule` harness with the standard `testing` package (no assertion libraries).
 - Fixtures live under `testdata/<rule_name>.go`, with `_<variant>.go`, `_test.go`, `.gold` files or a sub-directory as needed;
   they cover both reported and non-reported cases, and any configuration option the rule exposes.
+- A configurable rule has a `Test<RuleName>ConfigureResetsPreviousOptions` test that reuses one rule instance: it runs `testRule`
+  with every option set, then runs it again with no arguments on a fixture that must pass under the defaults.
+  See [`test/file_length_limit_test.go`](../../test/file_length_limit_test.go).
 
 ## Documentation
 

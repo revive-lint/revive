@@ -15,3 +15,11 @@ func TestIdenticalSwitchBranches(t *testing.T) {
 		})
 	}
 }
+
+func TestIdenticalSwitchBranchesConfigureResetsPreviousConfiguration(t *testing.T) {
+	r := &rule.IdenticalSwitchBranchesRule{}
+	testRule(t, "identical_switch_branches_allow_identical_default", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{map[string]any{"allowIdenticalDefault": true}},
+	})
+	testRule(t, "identical_switch_branches", r)
+}

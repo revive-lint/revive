@@ -23,3 +23,11 @@ func TestUnhandledErrorWithIgnoreList(t *testing.T) {
 		},
 	})
 }
+
+func TestUnhandledErrorConfigureResetsPreviousIgnoreList(t *testing.T) {
+	r := &rule.UnhandledErrorRule{}
+	testRule(t, "unhandled_error_config_reset", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{`fmt\.Print`},
+	})
+	testRule(t, "unhandled_error_config_reset_ok", r)
+}

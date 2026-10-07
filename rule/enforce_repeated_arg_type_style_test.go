@@ -65,7 +65,7 @@ func TestEnforceRepeatedArgTypeStyleRule_Configure(t *testing.T) {
 			arguments: lint.Arguments{
 				123,
 			},
-			wantErr: errors.New("invalid argument '123' for 'import-alias-naming' rule. Expecting string or map[string]string, got int"),
+			wantErr: errors.New("invalid argument '123' for 'enforce-repeated-arg-type-style' rule. Expecting string or map[string]string, got int"),
 		},
 		{
 			name: "invalid argument when string",

@@ -19,3 +19,11 @@ func TestBannedCharacters(t *testing.T) {
 		Arguments: lint.Arguments{"Ω", "Σ", "σ", "1"},
 	})
 }
+
+func TestBannedCharactersConfigureResetsPreviousList(t *testing.T) {
+	r := &rule.BannedCharsRule{}
+	testRule(t, "banned_characters", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{"Ω", "Σ", "σ", "1"},
+	})
+	testRule(t, "banned_characters_default", r)
+}
