@@ -91,8 +91,8 @@ func TestPackageDirectoryMismatchConfigureResetsPreviousConfiguration(t *testing
 	testRule(t, "package_directory_mismatch/testinfo/good", r, &lint.RuleConfig{
 		Arguments: lint.Arguments{map[string]any{"ignoreDirectories": []any{"testinfo"}}},
 	})
-	// An empty options map must fall back to the default ignored directories.
-	testRule(t, "package_directory_mismatch/testdata/ignored", r, &lint.RuleConfig{
+	// An empty options map must not keep the previously ignored directories.
+	testRule(t, "package_directory_mismatch/testinfo/bad", r, &lint.RuleConfig{
 		Arguments: lint.Arguments{map[string]any{}},
 	})
 }
