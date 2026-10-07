@@ -24,12 +24,14 @@ func (r *StringFormatRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failu
 		failures = append(failures, failure)
 	}
 
-	for i := range r.rules {
-		r.rules[i].onFailure = onFailure
+	rules := make([]stringFormatSubrule, len(r.rules))
+	copy(rules, r.rules)
+	for i := range rules {
+		rules[i].onFailure = onFailure
 	}
 
 	w := &lintStringFormatRule{
-		rules: r.rules,
+		rules: rules,
 	}
 
 	ast.Walk(w, file.AST)
