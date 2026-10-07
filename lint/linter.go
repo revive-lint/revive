@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"strings"
 
 	goversion "github.com/hashicorp/go-version"
 	"golang.org/x/mod/modfile"
@@ -87,26 +86,37 @@ func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-cha
 			return nil, err
 		}
 
-		alreadyKnownMod := false
-		for d, v := range perModVersions {
-			if strings.HasPrefix(dir, d) {
+		foundMod := false
+		for currentDir := dir; ; currentDir = filepath.Dir(currentDir) {
+			if v, ok := perModVersions[currentDir]; ok {
 				perPkgVersions[n] = v
-				alreadyKnownMod = true
+				foundMod = true
+				break
+			}
+
+			info, err := os.Stat(filepath.Join(currentDir, "go.mod"))
+			if err == nil && !info.IsDir() {
+				d, v, err := detectGoMod(currentDir)
+				if err != nil {
+					// No luck parsing the go.mod file or finding a Go version; use the default.
+					v = defaultGoVersion
+					d = currentDir
+				}
+				perModVersions[d] = v
+				perPkgVersions[n] = v
+				foundMod = true
+				break
+			}
+
+			parentDir := filepath.Dir(currentDir)
+			if currentDir == "." || parentDir == currentDir {
 				break
 			}
 		}
-		if alreadyKnownMod {
-			continue
+		if !foundMod {
+			// No luck finding the go.mod file thus set the default Go version.
+			perPkgVersions[n] = defaultGoVersion
 		}
-
-		d, v, err := detectGoMod(dir)
-		if err != nil {
-			// No luck finding the go.mod file thus set the default Go version
-			v = defaultGoVersion
-			d = dir
-		}
-		perModVersions[d] = v
-		perPkgVersions[n] = v
 	}
 
 	var wg errgroup.Group
