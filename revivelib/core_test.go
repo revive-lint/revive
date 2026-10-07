@@ -35,6 +35,39 @@ func TestReviveLint(t *testing.T) {
 	}
 }
 
+func TestReviveInstancesHaveIndependentRuleConfiguration(t *testing.T) {
+	_, err := revivelib.New(&lint.Config{
+		Confidence: 0.8,
+		Rules: map[string]lint.RuleConfig{
+			"package-naming": {Arguments: lint.Arguments{map[string]any{"skipDefaultBadNameCheck": true}}},
+		},
+	}, false, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := revivelib.New(&lint.Config{
+		Confidence: 0.8,
+		Rules:      map[string]lint.RuleConfig{"package-naming": {}},
+	}, false, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	failures, err := second.Lint(revivelib.Include("../testdata/package_naming_bad_default.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for failure := range failures {
+		if failure.RuleName == "package-naming" && strings.Contains(failure.Failure, `don't use "util"`) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("the second Revive instance inherited the first instance's package-naming configuration")
+	}
+}
+
 func TestReviveFormat(t *testing.T) {
 	t.Setenv("NO_COLOR", "true")
 	// ARRANGE
