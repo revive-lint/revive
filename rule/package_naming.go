@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	gopackages "golang.org/x/tools/go/packages"
 
@@ -67,6 +68,53 @@ var commonStdNames = map[string]string{
 	"url":      "net/url",
 }
 
+// stdPackagesCache memoizes the successful result of [stdPackageNames] for the lifetime of the process.
+var stdPackagesCache struct {
+	sync.Mutex
+
+	names map[string]string
+}
+
+// stdPackageNames returns name -> path of standard library packages excluding internal and vendor ones,
+// e.g. `http` -> `net/http`, `rand` -> `math/rand`.
+// Listing the standard library spawns a `go list` subprocess, so a successful result is loaded once per
+// process and shared by all rule instances. The returned map must not be modified. Failures, including
+// a partial listing, are not cached, so a later call retries the listing.
+func stdPackageNames() (map[string]string, error) {
+	stdPackagesCache.Lock()
+	defer stdPackagesCache.Unlock()
+
+	if stdPackagesCache.names != nil {
+		return stdPackagesCache.names, nil
+	}
+
+	// Only the package name and path are needed: the default load mode would also compute (and cgo-process) package files.
+	pkgs, err := gopackages.Load(&gopackages.Config{Mode: gopackages.NeedName}, "std")
+	if err != nil {
+		return nil, fmt.Errorf("load std packages: %w", err)
+	}
+	if len(pkgs) == 0 {
+		return nil, errors.New("load std packages: the standard library listing is empty")
+	}
+
+	names := map[string]string{}
+	for _, pkg := range pkgs {
+		if len(pkg.Errors) > 0 {
+			return nil, fmt.Errorf("load std packages: %s: %w", pkg.PkgPath, pkg.Errors[0])
+		}
+		if isNonPublicPackage(pkg.PkgPath) {
+			continue
+		}
+		if existingPath, ok := names[pkg.Name]; !ok || pkg.PkgPath < existingPath {
+			names[pkg.Name] = pkg.PkgPath
+		}
+	}
+
+	stdPackagesCache.names = names
+
+	return names, nil
+}
+
 // nonPublicPackageSegments are package path segments that indicate the std package is not public.
 var nonPublicPackageSegments = map[string]struct{}{
 	"internal": {},
@@ -94,6 +142,7 @@ type PackageNamingRule struct {
 	checkCollisionWithAllStd bool // if true - enable checks for collisions with all Go standard library package names (including "version", "metrics" etc.)
 	// allStdNames holds name -> path of standard library packages excluding internal and vendor.
 	// Populated only if checkCollisionWithAllStd is true. `net/http` stored as `http`, `math/rand/v2` as `rand` etc.
+	// It aliases the process-wide cache of [stdPackageNames] and is read-only.
 	allStdNames map[string]string
 
 	// alreadyCheckedNames is keyed by fileDir (package directory path) to track which package directories
@@ -196,21 +245,12 @@ func (r *PackageNamingRule) Configure(arguments lint.Arguments) error {
 		return errors.New("invalid configuration for package-naming rule: skipCollisionWithCommonStd and checkCollisionWithAllStd cannot be both set")
 	}
 
-	if r.checkCollisionWithAllStd && r.allStdNames == nil {
-		pkgs, err := gopackages.Load(nil, "std")
+	if r.checkCollisionWithAllStd {
+		names, err := stdPackageNames()
 		if err != nil {
-			return fmt.Errorf("load std packages: %w", err)
+			return err
 		}
-
-		r.allStdNames = map[string]string{}
-		for _, pkg := range pkgs {
-			if isNonPublicPackage(pkg.PkgPath) {
-				continue
-			}
-			if existingPath, ok := r.allStdNames[pkg.Name]; !ok || pkg.PkgPath < existingPath {
-				r.allStdNames[pkg.Name] = pkg.PkgPath
-			}
-		}
+		r.allStdNames = names
 	}
 
 	return nil
