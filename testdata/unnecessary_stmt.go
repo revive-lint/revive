@@ -53,3 +53,20 @@ loop:
 
 	return // MATCH /omit unnecessary return statement/
 }
+
+func defaultOnly(a any) {
+	switch {
+	default:
+		println("always")
+	}
+
+	switch a {
+	default:
+		println("always")
+	}
+
+	switch a.(type) {
+	default:
+		println("always")
+	}
+}
