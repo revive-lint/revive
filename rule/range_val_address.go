@@ -137,24 +137,21 @@ func (bw rangeBodyVisitor) isAccessingRangeValueAddress(exp ast.Expr) bool {
 		return false
 	}
 
-	v, ok := u.X.(*ast.Ident)
-	if !ok {
-		var s *ast.SelectorExpr
-		s, ok = u.X.(*ast.SelectorExpr) // TODO: possible BUG: if it's `=` and not `:=`, it means that in the last return `ok` is always true
-		if !ok {
-			return false
-		}
-		v, ok = s.X.(*ast.Ident)
-		if !ok {
-			return false
-		}
+	return bw.isRangeValueOrField(u.X)
+}
 
-		if bw.valueIsStarExpr { // check type of value
+func (bw rangeBodyVisitor) isRangeValueOrField(expr ast.Expr) bool {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return e.Obj == bw.valueID
+	case *ast.SelectorExpr:
+		if bw.valueIsStarExpr { // fields reached through a pointer range value have distinct addresses
 			return false
 		}
+		return bw.isRangeValueOrField(e.X)
+	default:
+		return false
 	}
-
-	return ok && v.Obj == bw.valueID // TODO: ok is always true due to the previous TODO remark
 }
 
 func (bw rangeBodyVisitor) newFailure(node ast.Node) lint.Failure {

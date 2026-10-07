@@ -161,3 +161,16 @@ func rangeValAddress15() {
 		m = append(m, v{id: &value}) // MATCH /suspicious assignment of 'value'. range-loop variables always have the same address/
 	}
 }
+
+func rangeValAddressNestedField() {
+	type nested struct {
+		field struct {
+			value string
+		}
+	}
+
+	var pointers []*string
+	for _, value := range []nested{{}} {
+		pointers = append(pointers, &value.field.value) // MATCH /suspicious assignment of 'value'. range-loop variables always have the same address/
+	}
+}
