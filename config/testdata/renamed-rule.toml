@@ -6,4 +6,4 @@ warning-code = 0
 
 enable-all-rules = false
 
-[rule.imports-blacklist] # deprecated name of import-blocklist rule
+[rule.imports-blacklist] # former name of the imports-blocklist rule
