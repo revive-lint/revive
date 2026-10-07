@@ -48,6 +48,7 @@ var _ lint.ConfigurableRule = (*StringFormatRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *StringFormatRule) Configure(arguments lint.Arguments) error {
+	r.rules = nil
 	for i, argument := range arguments {
 		scopes, regex, negated, errorMessage, err := r.parseArgument(argument, i)
 		if err != nil {
