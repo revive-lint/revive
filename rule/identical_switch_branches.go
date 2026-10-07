@@ -20,6 +20,8 @@ var _ lint.ConfigurableRule = (*IdenticalSwitchBranchesRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *IdenticalSwitchBranchesRule) Configure(arguments lint.Arguments) error {
+	r.allowIdenticalDefault = false
+
 	if len(arguments) < 1 {
 		return nil // use defaults
 	}

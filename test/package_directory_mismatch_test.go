@@ -85,3 +85,14 @@ func TestPackageDirectoryMismatchWithMultipleDirectories(t *testing.T) {
 	testRule(t, "package_directory_mismatch/testutils/good", &rule.PackageDirectoryMismatchRule{}, config)
 	testRule(t, "package_directory_mismatch/testinfo/good", &rule.PackageDirectoryMismatchRule{}, config)
 }
+
+func TestPackageDirectoryMismatchConfigureResetsPreviousConfiguration(t *testing.T) {
+	r := &rule.PackageDirectoryMismatchRule{}
+	testRule(t, "package_directory_mismatch/testinfo/good", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{map[string]any{"ignoreDirectories": []any{"testinfo"}}},
+	})
+	// An empty options map must fall back to the default ignored directories.
+	testRule(t, "package_directory_mismatch/testdata/ignored", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{map[string]any{}},
+	})
+}

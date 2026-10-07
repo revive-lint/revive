@@ -149,3 +149,11 @@ func TestPackageNaming_stdLibConflict(t *testing.T) {
 		},
 	})
 }
+
+func TestPackageNamingConfigureResetsPreviousConfiguration(t *testing.T) {
+	r := &rule.PackageNamingRule{}
+	testRule(t, "package_naming_mixed_caps_skip", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{map[string]any{"skipConventionNameCheck": true}},
+	})
+	testRule(t, "package_naming_mixed_caps", r)
+}

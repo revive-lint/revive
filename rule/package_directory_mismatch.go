@@ -21,10 +21,14 @@ var _ lint.ConfigurableRule = (*PackageDirectoryMismatchRule)(nil)
 
 // Configure the rule to exclude certain directories.
 func (r *PackageDirectoryMismatchRule) Configure(arguments lint.Arguments) error {
-	if len(arguments) < 1 {
-		var err error
-		r.ignoredDirs, err = r.buildIgnoreRegex([]string{defaultIgnoredDirs})
+	var err error
+	r.ignoredDirs, err = r.buildIgnoreRegex([]string{defaultIgnoredDirs})
+	if err != nil {
 		return err
+	}
+
+	if len(arguments) < 1 {
+		return nil
 	}
 
 	args, ok := arguments[0].(map[string]any)
@@ -51,7 +55,6 @@ func (r *PackageDirectoryMismatchRule) Configure(arguments lint.Arguments) error
 			ignoredDirs[i] = str
 		}
 
-		var err error
 		r.ignoredDirs, err = r.buildIgnoreRegex(ignoredDirs)
 		return err
 	}
