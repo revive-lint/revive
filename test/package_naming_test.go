@@ -151,9 +151,67 @@ func TestPackageNaming_stdLibConflict(t *testing.T) {
 }
 
 func TestPackageNamingConfigureResetsPreviousConfiguration(t *testing.T) {
-	r := &rule.PackageNamingRule{}
-	testRule(t, "package_naming_mixed_caps_skip", r, &lint.RuleConfig{
-		Arguments: lint.Arguments{map[string]any{"skipConventionNameCheck": true}},
-	})
-	testRule(t, "package_naming_mixed_caps", r)
+	tests := []struct {
+		name              string
+		configuredFixture string
+		defaultFixture    string
+		arguments         lint.Arguments
+	}{
+		{
+			name:              "skip convention check",
+			configuredFixture: "package_naming_mixed_caps_skip",
+			defaultFixture:    "package_naming_mixed_caps",
+			arguments:         lint.Arguments{map[string]any{"skipConventionNameCheck": true}},
+		},
+		{
+			name:              "convention regex",
+			configuredFixture: "package_naming_mixed_caps_skip",
+			defaultFixture:    "package_naming_mixed_caps",
+			arguments:         lint.Arguments{map[string]any{"conventionNameCheckRegex": "^[A-Z]"}},
+		},
+		{
+			name:              "skip top-level check",
+			configuredFixture: "package_naming_top_level_pkg_skip",
+			defaultFixture:    "package_naming_top_level_pkg",
+			arguments:         lint.Arguments{map[string]any{"skipTopLevelCheck": true}},
+		},
+		{
+			name:              "skip default bad-name check",
+			configuredFixture: "package_naming_bad_default_skip",
+			defaultFixture:    "package_naming_bad_default",
+			arguments:         lint.Arguments{map[string]any{"skipDefaultBadNameCheck": true}},
+		},
+		{
+			name:              "check extra bad names",
+			configuredFixture: "package_naming_bad_extra",
+			defaultFixture:    "package_naming_bad_extra_skip",
+			arguments:         lint.Arguments{map[string]any{"checkExtraBadName": true}},
+		},
+		{
+			name:              "user-defined bad names",
+			configuredFixture: "package_naming_bad_user_defined",
+			defaultFixture:    "package_naming_bad_user_defined_skip",
+			arguments:         lint.Arguments{map[string]any{"userDefinedBadNames": []any{"data"}}},
+		},
+		{
+			name:              "skip common standard-library collision",
+			configuredFixture: "package_naming_std_common_conflict_skip",
+			defaultFixture:    "package_naming_std_common_conflict",
+			arguments:         lint.Arguments{map[string]any{"skipCollisionWithCommonStd": true}},
+		},
+		{
+			name:              "check all standard-library collisions",
+			configuredFixture: "package_naming_std_all_conflict",
+			defaultFixture:    "package_naming_std_all_conflict_skip",
+			arguments:         lint.Arguments{map[string]any{"checkCollisionWithAllStd": true}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &rule.PackageNamingRule{}
+			testRule(t, tt.configuredFixture, r, &lint.RuleConfig{Arguments: tt.arguments})
+			testRule(t, tt.defaultFixture, r)
+		})
+	}
 }
