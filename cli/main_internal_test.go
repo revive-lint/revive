@@ -113,6 +113,29 @@ func TestXDGConfigDirNoFile(t *testing.T) {
 	}
 }
 
+func TestXDGConfigDirUnsetUsesHomeBeforeCurrentDirectory(t *testing.T) {
+	t.Cleanup(func() { AppFs = afero.NewMemMapFs() })
+	t.Setenv("XDG_CONFIG_HOME", "")
+
+	homeDirPath := filepath.FromSlash("/tmp-iofs/home/tester")
+	if err := AppFs.MkdirAll(homeDirPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(AppFs, filepath.Join(homeDirPath, "revive.toml"), []byte("home config"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(AppFs, "revive.toml", []byte("current directory config"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	setHome(t, homeDirPath)
+
+	got := buildDefaultConfigPath()
+	want := filepath.Join(homeDirPath, "revive.toml")
+	if got != want {
+		t.Errorf("got %q, wanted %q", got, want)
+	}
+}
+
 func TestGetReleaseVersion(t *testing.T) {
 	got := getVersion("builder", "2024-11-15 10:52 UTC", "7ee4500e125e2d1b12653b2c8e140fec380919b4", "v1.5.0-12-g7ee4500-dev")
 	want := `Version:	v1.5.0-12-g7ee4500-dev
