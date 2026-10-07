@@ -84,9 +84,6 @@ func (w *lintUselessFallthrough) Visit(node ast.Node) ast.Visitor {
 			Category:   lint.FailureCategoryStyle,
 			Failure:    `this "fallthrough" can be removed by consolidating this case clause with the next one`,
 		})
-
-		ast.Walk(w, caseClause)
 	}
-
-	return nil
+	return w
 }
