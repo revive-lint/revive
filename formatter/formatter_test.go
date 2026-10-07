@@ -1,7 +1,6 @@
 package formatter_test
 
 import (
-	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"go/token"
@@ -607,6 +606,7 @@ Warnings:
     {
       "results": [
         {
+          "level": "warning",
           "locations": [
             {
               "physicalLocation": {
@@ -671,6 +671,13 @@ Warnings:
           "informationUri": "https://revive.run",
           "name": "revive",
           "rules": [
+            {
+              "helpUri": "https://revive.run/r#error-naming",
+              "id": "error-naming",
+              "properties": {
+                "severity": "warning"
+              }
+            },
             {
               "helpUri": "https://revive.run/r#use-errors-new",
               "id": "use-errors-new",
@@ -891,6 +898,9 @@ file.go
 			output, err := td.formatter.Format(failures, lint.Config{
 				Confidence: 0.8,
 				Rules: lint.RulesConfig{
+					"error-naming": lint.RuleConfig{
+						Severity: lint.SeverityWarning,
+					},
 					"use-errors-new": lint.RuleConfig{
 						Severity: lint.SeverityError,
 					},
@@ -927,68 +937,5 @@ file.go
 				}
 			}
 		})
-	}
-}
-
-type sarifTestLog struct {
-	Runs []sarifTestRun `json:"runs"`
-}
-
-type sarifTestRun struct {
-	Results []sarifTestResult `json:"results"`
-	Tool    sarifTestTool     `json:"tool"`
-}
-
-type sarifTestResult struct {
-	RuleID string `json:"ruleId"`
-}
-
-type sarifTestTool struct {
-	Driver sarifTestDriver `json:"driver"`
-}
-
-type sarifTestDriver struct {
-	Rules []sarifTestRule `json:"rules"`
-}
-
-type sarifTestRule struct {
-	ID string `json:"id"`
-}
-
-func TestSARIFContainsAllConfiguredRules(t *testing.T) {
-	sarifFormatter := &formatter.Sarif{}
-	failures := make(chan lint.Failure, 1)
-	failures <- lint.Failure{Failure: "example", RuleName: "second-rule"}
-	close(failures)
-
-	output, err := sarifFormatter.Format(failures, lint.Config{
-		Rules: lint.RulesConfig{
-			"first-rule":  {Severity: lint.SeverityWarning},
-			"second-rule": {Severity: lint.SeverityError},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var log sarifTestLog
-	if err := json.Unmarshal([]byte(output), &log); err != nil {
-		t.Fatal(err)
-	}
-	if len(log.Runs) != 1 {
-		t.Fatalf("got %d runs, want 1", len(log.Runs))
-	}
-
-	registeredRules := make(map[string]bool, len(log.Runs[0].Tool.Driver.Rules))
-	for _, rule := range log.Runs[0].Tool.Driver.Rules {
-		registeredRules[rule.ID] = true
-	}
-	if !registeredRules["first-rule"] || !registeredRules["second-rule"] {
-		t.Fatalf("registered rules = %v, want first-rule and second-rule", registeredRules)
-	}
-	for _, result := range log.Runs[0].Results {
-		if !registeredRules[result.RuleID] {
-			t.Errorf("result references unregistered rule %q", result.RuleID)
-		}
 	}
 }
