@@ -11,6 +11,12 @@ import (
 	"github.com/mgechev/revive/lint"
 )
 
+const (
+	defaultFileLengthLimit               = 0     // thus the rule is disabled
+	defaultFileLengthLimitSkipComments   = false // thus comment lines are counted
+	defaultFileLengthLimitSkipBlankLines = false // thus blank lines are counted
+)
+
 // FileLengthLimitRule lints the number of lines in a file.
 type FileLengthLimitRule struct {
 	// max is the maximum number of lines allowed in a file. 0 means the rule is disabled.
@@ -76,6 +82,10 @@ var _ lint.ConfigurableRule = (*FileLengthLimitRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *FileLengthLimitRule) Configure(arguments lint.Arguments) error {
+	r.max = defaultFileLengthLimit
+	r.skipComments = defaultFileLengthLimitSkipComments
+	r.skipBlankLines = defaultFileLengthLimitSkipBlankLines
+
 	if len(arguments) < 1 {
 		return nil // use default
 	}
