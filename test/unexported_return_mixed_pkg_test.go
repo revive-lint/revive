@@ -33,7 +33,7 @@ func TestUnexportedReturnMixedPackages(t *testing.T) {
 
 	const iterations = 50
 
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		l := lint.New(os.ReadFile, 0)
 
 		ps, err := l.Lint([][]string{files}, []lint.Rule{&rule.UnexportedReturnRule{}}, lint.Config{})
@@ -81,15 +81,12 @@ func TestUnexportedReturnConcurrentExecution(t *testing.T) {
 
 	const goroutines = 10
 	var wg sync.WaitGroup
-	wg.Add(goroutines)
-
-	for g := 0; g < goroutines; g++ {
-		go func(routine int) {
-			defer wg.Done()
+	for g := range goroutines {
+		wg.Go(func() {
 			l := lint.New(os.ReadFile, 0)
 			ps, err := l.Lint([][]string{files}, []lint.Rule{&rule.UnexportedReturnRule{}}, lint.Config{})
 			if err != nil {
-				t.Errorf("goroutine %d: Lint failed: %v", routine, err)
+				t.Errorf("goroutine %d: Lint failed: %v", g, err)
 				return
 			}
 
@@ -101,9 +98,9 @@ func TestUnexportedReturnConcurrentExecution(t *testing.T) {
 			}
 
 			if count != 2 {
-				t.Errorf("goroutine %d: expected 2 failures, got %d", routine, count)
+				t.Errorf("goroutine %d: expected 2 failures, got %d", g, count)
 			}
-		}(g)
+		})
 	}
 
 	wg.Wait()
