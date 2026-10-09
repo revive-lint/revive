@@ -22,6 +22,7 @@ type Package struct {
 	mu        sync.RWMutex
 	files     map[string]*File
 	goVersion *goversion.Version
+	exports   *moduleExports
 	typesPkg  *types.Package
 	typesInfo *types.Info
 	// sortable is the set of types in the package that implement sort.Interface.
@@ -118,7 +119,7 @@ func (p *Package) TypeCheck() error {
 	config := &types.Config{
 		// By setting a no-op error reporter, the type checker does as much work as possible.
 		Error:    func(error) {},
-		Importer: importer.Default(),
+		Importer: p.importer(),
 	}
 	info := &types.Info{
 		Types:  map[ast.Expr]types.TypeAndValue{},
@@ -146,6 +147,13 @@ func (p *Package) TypeCheck() error {
 	p.typesInfo = info
 
 	return err
+}
+
+func (p *Package) importer() types.Importer {
+	if p.exports == nil {
+		return importer.Default()
+	}
+	return importer.ForCompiler(p.fset, "gc", p.exports.lookup)
 }
 
 // check function encapsulates the call to [go/types.Config.Check] method and
