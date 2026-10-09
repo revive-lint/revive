@@ -148,24 +148,15 @@ func (r lintLineLengthNum) check() {
 			continue
 		}
 
+		rawLen := len(t)
 		t = strings.ReplaceAll(t, "\t", spaces)
 		c := utf8.RuneCountInString(t)
 		if c > r.max {
+			pos := r.file.LineStart(l)
 			r.onFailure(lint.Failure{
-				Category: lint.FailureCategoryStyle,
-				Position: lint.FailurePosition{
-					// Offset not set; it is non-trivial, and doesn't appear to be needed.
-					Start: token.Position{
-						Filename: r.file.Name,
-						Line:     l,
-						Column:   0,
-					},
-					End: token.Position{
-						Filename: r.file.Name,
-						Line:     l,
-						Column:   c,
-					},
-				},
+				Category:   lint.FailureCategoryStyle,
+				Pos:        pos,
+				End:        pos + token.Pos(rawLen),
 				Confidence: 1,
 				Failure:    fmt.Sprintf("line is %d characters, out of limit %d", c, r.max),
 			})

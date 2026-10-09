@@ -3,7 +3,6 @@ package rule
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
 	"strings"
 	"sync"
 
@@ -58,14 +57,12 @@ func (l *lintPackageComments) checkPackageComment() []lint.Failure {
 	var packageFile *ast.File // which name is $package.go
 	var firstFile *ast.File
 	var firstFileName string
-	var fileSource string
 	for name, file := range l.file.Pkg.Files() {
 		if file.AST.Doc != nil {
 			return nil
 		}
 		if name == "doc.go" {
 			docFile = file.AST
-			fileSource = "doc.go"
 		}
 		if name == file.AST.Name.String()+".go" {
 			packageFile = file.AST
@@ -78,21 +75,16 @@ func (l *lintPackageComments) checkPackageComment() []lint.Failure {
 	// prefer warning on doc.go, $package.go over first file
 	if docFile == nil {
 		docFile = packageFile
-		fileSource = l.fileAst.Name.String() + ".go"
 	}
 	if docFile == nil {
 		docFile = firstFile
-		fileSource = firstFileName
 	}
 
 	if docFile != nil {
-		pkgFile := l.file.Pkg.Files()[fileSource]
 		return []lint.Failure{{
-			Category: lint.FailureCategoryComments,
-			Position: lint.FailurePosition{
-				Start: pkgFile.ToPosition(docFile.Pos()),
-				End:   pkgFile.ToPosition(docFile.Name.End()),
-			},
+			Category:   lint.FailureCategoryComments,
+			Pos:        docFile.Pos(),
+			End:        docFile.Name.End(),
 			Confidence: 1,
 			Failure:    "should have a package comment",
 		}}
@@ -124,18 +116,11 @@ func (l *lintPackageComments) Visit(_ ast.Node) ast.Visitor {
 			// There isn't a great place to anchor this error;
 			// the start of the blank lines between the doc and the package statement
 			// is at least pointing at the location of the problem.
-			pos := token.Position{
-				Filename: pkgPos.Filename,
-				// Offset not set; it is non-trivial, and doesn't appear to be needed.
-				Line:   endLine + 1,
-				Column: 1,
-			}
+			pos := l.file.LineStart(endLine + 1)
 			l.onFailure(lint.Failure{
-				Category: lint.FailureCategoryComments,
-				Position: lint.FailurePosition{
-					Start: pos,
-					End:   pos,
-				},
+				Category:   lint.FailureCategoryComments,
+				Pos:        pos,
+				End:        pos,
 				Confidence: 0.9,
 				Failure:    "package comment is detached; there should be no blank lines between it and the package statement",
 			})

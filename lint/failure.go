@@ -72,10 +72,13 @@ type FailurePosition struct {
 
 // Failure defines a struct for a linting failure.
 type Failure struct {
-	Failure         string          `json:"Failure"`
-	RuleName        string          `json:"RuleName"`
-	Category        FailureCategory `json:"Category"`
+	Failure  string          `json:"Failure"`
+	RuleName string          `json:"RuleName"`
+	Category FailureCategory `json:"Category"`
+	// Rules should set Node or Pos/End; Position is filled by revive itself.
 	Position        FailurePosition `json:"Position"`
+	Pos             token.Pos       `json:"-"`
+	End             token.Pos       `json:"-"`
 	Node            ast.Node        `json:"-"`
 	Confidence      float64         `json:"Confidence"`
 	ReplacementLine string          `json:"ReplacementLine"`

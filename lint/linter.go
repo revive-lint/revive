@@ -137,11 +137,7 @@ func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleS
 		return nil
 	}
 
-	pkg := &Package{
-		fset:      token.NewFileSet(),
-		files:     map[string]*File{},
-		goVersion: gover,
-	}
+	pkg := NewPackage(token.NewFileSet(), gover, nil, nil)
 	for _, filename := range filenames {
 		content, err := l.readFile(filename)
 		if err != nil {
@@ -157,14 +153,14 @@ func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleS
 			continue
 		}
 		file.logger = l.logger
-		pkg.files[filename] = file
+		pkg.AddFile(file)
 	}
 
-	if len(pkg.files) == 0 {
+	if len(pkg.Files()) == 0 {
 		return nil
 	}
 
-	return pkg.lint(ruleSet, config, failures)
+	return pkg.Lint(ruleSet, config, failures)
 }
 
 func detectGoMod(dir string) (rootDir string, ver *goversion.Version, err error) {

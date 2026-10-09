@@ -52,6 +52,30 @@ var (
 	Go126 = goversion.Must(goversion.NewVersion("1.26"))
 )
 
+// NewPackage creates a package.
+// If goVersion is nil, the default Go version is assumed.
+// If type information is provided, [Package.TypeCheck] becomes a no-op.
+func NewPackage(fset *token.FileSet, goVersion *goversion.Version, typesPkg *types.Package, typesInfo *types.Info) *Package {
+	if goVersion == nil {
+		goVersion = defaultGoVersion
+	}
+	return &Package{
+		fset:      fset,
+		files:     map[string]*File{},
+		goVersion: goVersion,
+		typesPkg:  typesPkg,
+		typesInfo: typesInfo,
+	}
+}
+
+// AddFile adds a file to the package.
+func (p *Package) AddFile(file *File) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.files[file.Name] = file
+}
+
 // Files return package's files.
 func (p *Package) Files() map[string]*File {
 	p.mu.RLock()
@@ -209,7 +233,9 @@ func (p *Package) scanSortable() {
 	}
 }
 
-func (p *Package) lint(rules []Rule, config Config, failures chan Failure) error {
+// Lint applies the rules to the package files and sends failures to the channel.
+// It does not close the channel.
+func (p *Package) Lint(rules []Rule, config Config, failures chan Failure) error {
 	p.scanSortable()
 	var eg errgroup.Group
 	for _, file := range p.Files() {

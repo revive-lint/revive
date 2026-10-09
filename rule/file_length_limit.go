@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/token"
 	"strings"
 
 	"github.com/mgechev/revive/lint"
@@ -61,17 +60,14 @@ func (r *FileLengthLimitRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 		return nil
 	}
 
+	pos := file.LineStart(all)
 	return []lint.Failure{
 		{
 			Category:   lint.FailureCategoryStyle,
 			Confidence: 1,
-			Position: lint.FailurePosition{
-				Start: token.Position{
-					Filename: file.Name,
-					Line:     all,
-				},
-			},
-			Failure: fmt.Sprintf("file length is %d lines, which exceeds the limit of %d", lines, r.max),
+			Pos:        pos,
+			End:        pos,
+			Failure:    fmt.Sprintf("file length is %d lines, which exceeds the limit of %d", lines, r.max),
 		},
 	}
 }
