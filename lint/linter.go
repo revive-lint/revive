@@ -137,11 +137,15 @@ func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleS
 		return nil
 	}
 
-	pkg := &Package{
-		fset:      token.NewFileSet(),
-		files:     map[string]*File{},
-		goVersion: gover,
-	}
+	// A single directory can contain files from multiple Go packages:
+	// source files and internal tests share one package name (e.g. "foo"),
+	// while external test files use a different one ("foo_test").
+	// Type-checking must be performed per Go package — mixing package "foo" and
+	// "foo_test" files into one types.Package makes results non-deterministic
+	// because the name used for the types.Package is picked from a Go map
+	// (see Package.TypeCheck). Group files by their parsed package name first.
+	fset := token.NewFileSet()
+	filesByPkg := map[string]map[string]*File{}
 	for _, filename := range filenames {
 		content, err := l.readFile(filename)
 		if err != nil {
@@ -151,20 +155,45 @@ func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleS
 			continue
 		}
 
-		file, err := NewFile(filename, content, pkg)
+		// Parse into a throwaway Package so NewFile can succeed; the real
+		// assignment happens below once we know which group the file belongs to.
+		tmp := &Package{fset: fset, files: map[string]*File{}, goVersion: gover}
+		file, err := NewFile(filename, content, tmp)
 		if err != nil {
 			addInvalidFileFailure(filename, err.Error(), failures)
 			continue
 		}
 		file.logger = l.logger
-		pkg.files[filename] = file
+
+		pkgName := file.AST.Name.Name
+		group, ok := filesByPkg[pkgName]
+		if !ok {
+			group = map[string]*File{}
+			filesByPkg[pkgName] = group
+		}
+		group[filename] = file
 	}
 
-	if len(pkg.files) == 0 {
+	if len(filesByPkg) == 0 {
 		return nil
 	}
 
-	return pkg.lint(ruleSet, config, failures)
+	var eg errgroup.Group
+	for _, groupFiles := range filesByPkg {
+		pkg := &Package{
+			fset:      fset,
+			files:     groupFiles,
+			goVersion: gover,
+		}
+		for _, f := range groupFiles {
+			f.Pkg = pkg
+		}
+		eg.Go(func() error {
+			return pkg.lint(ruleSet, config, failures)
+		})
+	}
+
+	return eg.Wait()
 }
 
 func detectGoMod(dir string) (rootDir string, ver *goversion.Version, err error) {
