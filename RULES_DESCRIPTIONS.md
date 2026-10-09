@@ -3002,6 +3002,10 @@ The first slice is an allowlist, and the second one is a blocklist of initialism
 You can add a boolean parameter `skip-initialism-name-checks` to control how names
 of functions, variables, consts, and structs handle known initialisms (e.g., JSON, HTTP, etc.) when written in `camelCase`.
 When `skip-initialism-name-checks` is set to true, the rule allows names like `readJson`, `HttpMethod` etc.
+You can add a boolean parameter `initialisms-as-words` to treat initialisms as normal words
+for uppercase and lowercase rules (forbidding names like `readJSON`, `HTTPMethod`, `ID` and requiring `readJson`, `HttpMethod`, `Id`, etc.).
+When `initialisms-as-words` is set to true, the built-in list of common initialisms is ignored,
+while allowlist and blocklist configurations remain active.
 In the map, you can add a boolean `upper-case-const` parameter to allow `UPPER_CASE` for `const`.
 
 By default, the rule behaves exactly as the alternative in `golint` for non-package identifiers;
@@ -3016,6 +3020,11 @@ Configuration examples:
 ```toml
 [rule.var-naming]
 arguments = [[], [], [{ skip-initialism-name-checks = true }]]
+```
+
+```toml
+[rule.var-naming]
+arguments = [[], [], [{ initialisms-as-words = true }]]
 ```
 
 ```toml

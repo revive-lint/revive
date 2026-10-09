@@ -43,6 +43,30 @@ func TestVarNaming(t *testing.T) {
 			Arguments: lint.Arguments{[]any{}, []any{}, []any{map[string]any{key: true}}},
 		})
 	}
+
+	for _, key := range []string{"initialisms-as-words", "initialismsAsWords", "initialismsaswords"} {
+		testRule(t, "var_naming_initialisms_as_words_true", &rule.VarNamingRule{}, &lint.RuleConfig{
+			Arguments: lint.Arguments{
+				[]any{},
+				[]any{},
+				[]any{map[string]any{key: true}},
+			},
+		})
+	}
+	testRule(t, "var_naming_initialisms_as_words_false", &rule.VarNamingRule{}, &lint.RuleConfig{
+		Arguments: lint.Arguments{
+			[]any{},
+			[]any{},
+			[]any{map[string]any{"initialisms-as-words": false}},
+		},
+	})
+	testRule(t, "var_naming_allowlist_blocklist_initialisms_as_words", &rule.VarNamingRule{}, &lint.RuleConfig{
+		Arguments: lint.Arguments{
+			[]any{"JSON"},
+			[]any{"URL"},
+			[]any{map[string]any{"initialisms-as-words": true}},
+		},
+	})
 }
 
 func TestVarNamingConfigureResetsPreviousConfiguration(t *testing.T) {
@@ -51,7 +75,7 @@ func TestVarNamingConfigureResetsPreviousConfiguration(t *testing.T) {
 		Arguments: lint.Arguments{
 			[]any{"ID"},
 			[]any{"GRPC"},
-			[]any{map[string]any{"skipInitialismNameChecks": true, "upperCaseConst": true}},
+			[]any{map[string]any{"skipInitialismNameChecks": true, "upperCaseConst": true, "initialismsAsWords": true}},
 		},
 	})
 	testRule(t, "var_naming_config_reset_default", r)

@@ -26,6 +26,7 @@ func TestVarNamingRule_Configure(t *testing.T) {
 				[]any{map[string]any{
 					"skipInitialismNameChecks": true,
 					"upperCaseConst":           true,
+					"initialismsAsWords":       true,
 				}},
 			},
 		},
@@ -37,6 +38,7 @@ func TestVarNamingRule_Configure(t *testing.T) {
 				[]any{map[string]any{
 					"skipinitialismnamechecks": true,
 					"uppercaseconst":           true,
+					"initialismsaswords":       true,
 				}},
 			},
 		},
@@ -48,6 +50,7 @@ func TestVarNamingRule_Configure(t *testing.T) {
 				[]any{map[string]any{
 					"skip-initialism-name-checks": true,
 					"upper-case-const":            true,
+					"initialisms-as-words":        true,
 				}},
 			},
 		},
