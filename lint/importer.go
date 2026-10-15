@@ -98,8 +98,9 @@ func (m *moduleExports) exportFile(path string) (string, error) {
 	if res, ok := m.exports[path]; ok {
 		return res.file, res.err
 	}
+	var batchErr error
 	if len(m.pending) > 0 {
-		m.loadPending()
+		batchErr = m.loadPending()
 		if res, ok := m.exports[path]; ok {
 			return res.file, res.err
 		}
@@ -125,6 +126,7 @@ func (m *moduleExports) exportFile(path string) (string, error) {
 		}
 	}
 	if file == "" {
+		err = errors.Join(batchErr, err)
 		if err == nil {
 			err = fmt.Errorf("no export data for %q: package could not be loaded", path)
 		} else {
@@ -137,7 +139,7 @@ func (m *moduleExports) exportFile(path string) (string, error) {
 
 // loadPending resolves export data for pending packages and their dependencies.
 // It discovers test imports separately to avoid compiling test variants and generated test mains.
-func (m *moduleExports) loadPending() {
+func (m *moduleExports) loadPending() error {
 	patterns := make([]string, 0, len(m.pending))
 	for _, dir := range m.pending {
 		patterns = append(patterns, m.relativeDir(dir))
@@ -149,13 +151,17 @@ func (m *moduleExports) loadPending() {
 		Tests: true,
 	}, patterns...)
 	if err != nil {
-		return
+		return fmt.Errorf("discover package dependencies: %w", err)
 	}
 
+	var discoveryErr error
 	importMap := map[string]string{}
 	paths := map[string]bool{}
 	patterns = nil
 	packages.Visit(pkgs, func(pkg *packages.Package) bool {
+		for _, pkgErr := range pkg.Errors {
+			discoveryErr = errors.Join(discoveryErr, pkgErr)
+		}
 		for path, imported := range pkg.Imports {
 			importMap[path] = imported.PkgPath
 		}
@@ -169,8 +175,11 @@ func (m *moduleExports) loadPending() {
 		}
 		return true
 	}, nil)
+	if discoveryErr != nil {
+		discoveryErr = fmt.Errorf("discover package dependencies: %w", discoveryErr)
+	}
 	if len(patterns) == 0 {
-		return
+		return discoveryErr
 	}
 
 	pkgs, err = packages.Load(&packages.Config{
@@ -178,11 +187,15 @@ func (m *moduleExports) loadPending() {
 		Mode: packages.NeedName | packages.NeedExportFile,
 	}, patterns...)
 	if err != nil {
-		return
+		return errors.Join(discoveryErr, fmt.Errorf("load package export data: %w", err))
 	}
+	var exportErr error
 	for _, pkg := range pkgs {
 		if pkg.ExportFile != "" {
 			m.exports[pkg.PkgPath] = exportResult{file: pkg.ExportFile}
+		}
+		for _, pkgErr := range pkg.Errors {
+			exportErr = errors.Join(exportErr, pkgErr)
 		}
 	}
 
@@ -195,6 +208,10 @@ func (m *moduleExports) loadPending() {
 			}
 		}
 	}
+	if exportErr != nil {
+		exportErr = fmt.Errorf("load package export data: %w", exportErr)
+	}
+	return errors.Join(discoveryErr, exportErr)
 }
 
 func (m *moduleExports) relativeDir(dir string) string {
