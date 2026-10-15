@@ -117,10 +117,11 @@ func (m *moduleExports) exportFile(path string) (string, error) {
 			continue
 		}
 		file = pkg.ExportFile
-		if file == "" {
-			for _, pkgErr := range pkg.Errors {
-				err = errors.Join(err, pkgErr)
-			}
+		if file != "" {
+			break
+		}
+		for _, pkgErr := range pkg.Errors {
+			err = errors.Join(err, pkgErr)
 		}
 	}
 	if file == "" {
