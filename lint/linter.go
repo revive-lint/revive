@@ -14,6 +14,8 @@ import (
 	goversion "github.com/hashicorp/go-version"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/mgechev/revive/internal/timing"
 )
 
 // ReadFile defines an abstraction for reading files.
@@ -71,6 +73,7 @@ var (
 func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-chan Failure, error) {
 	failures := make(chan Failure)
 
+	doneVersions := timing.Track(l.logger, "go-version-detection")
 	perModVersions := map[string]*goversion.Version{}
 	perPkgVersions := make([]*goversion.Version, len(packages))
 	for n, files := range packages {
@@ -104,17 +107,29 @@ func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-cha
 			// No luck finding the go.mod file thus set the default Go version
 			v = defaultGoVersion
 			d = dir
+			l.logger.Debug("go module not found, using the default Go version", "dir", dir, "version", v)
+		} else {
+			l.logger.Debug("go module detected", "dir", d, "version", v)
 		}
 		perModVersions[d] = v
 		perPkgVersions[n] = v
 	}
 
+	doneVersions("packages", len(packages), "modules", len(perModVersions))
+
+	ruleNames := make([]string, len(ruleSet))
+	for i, r := range ruleSet {
+		ruleNames[i] = r.Name()
+	}
+	ruleTimings := timing.NewRules(l.logger, ruleNames)
+
+	doneLint := timing.Track(l.logger, "lint")
 	var wg errgroup.Group
 	for n := range packages {
 		wg.Go(func() error {
 			pkg := packages[n]
 			gover := perPkgVersions[n]
-			if err := l.lintPackage(pkg, gover, ruleSet, config, failures); err != nil {
+			if err := l.lintPackage(pkg, gover, ruleSet, config, ruleTimings, failures); err != nil {
 				return fmt.Errorf("error during linting: %w", err)
 			}
 			return nil
@@ -126,13 +141,15 @@ func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-cha
 		if err != nil {
 			failures <- NewInternalFailure(err.Error())
 		}
+		doneLint("packages", len(packages), "rules", len(ruleSet))
+		ruleTimings.Log(l.logger)
 		close(failures)
 	}()
 
 	return failures, nil
 }
 
-func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleSet []Rule, config Config, failures chan Failure) error {
+func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleSet []Rule, config Config, ruleTimings *timing.Rules, failures chan Failure) error {
 	if len(filenames) == 0 {
 		return nil
 	}
@@ -141,24 +158,36 @@ func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleS
 		fset:      token.NewFileSet(),
 		files:     map[string]*File{},
 		goVersion: gover,
+		logger:    l.logger,
+		timings:   ruleTimings,
 	}
+
+	donePackage := timing.Track(l.logger, "package-lint", "dir", filepath.Dir(filenames[0]))
+	defer func() { donePackage("files", len(pkg.files)) }()
+
+	doneReadParse := timing.Track(l.logger, "package-read-parse")
+	var generated, invalid int
 	for _, filename := range filenames {
 		content, err := l.readFile(filename)
 		if err != nil {
+			doneReadParse("files", len(filenames), "error", err)
 			return err
 		}
 		if !config.IgnoreGeneratedHeader && isGenerated(content) {
+			generated++
 			continue
 		}
 
 		file, err := NewFile(filename, content, pkg)
 		if err != nil {
+			invalid++
 			addInvalidFileFailure(filename, err.Error(), failures)
 			continue
 		}
 		file.logger = l.logger
 		pkg.files[filename] = file
 	}
+	doneReadParse("files", len(filenames), "generated", generated, "invalid", invalid)
 
 	if len(pkg.files) == 0 {
 		return nil

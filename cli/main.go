@@ -2,8 +2,10 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -13,6 +15,8 @@ import (
 	"github.com/spf13/afero"
 
 	"github.com/mgechev/revive/config"
+	"github.com/mgechev/revive/internal/timing"
+	"github.com/mgechev/revive/logging"
 	"github.com/mgechev/revive/revivelib"
 )
 
@@ -32,26 +36,48 @@ var (
 	AppFs = afero.NewOsFs()
 )
 
-func fail(err string) {
-	fmt.Fprintln(os.Stderr, err)
-	os.Exit(1) //revive:disable-line:deep-exit
-}
-
 // RunRevive runs the CLI for revive.
 func RunRevive(extraRules ...revivelib.ExtraRule) {
 	// Move parsing flags outside of init(); otherwise, tests don't work properly.
 	// More info: https://github.com/golang/go/issues/46869#issuecomment-865695953
-	initConfig()
+	if err := initConfig(); err != nil {
+		// Same exit codes as flag.ExitOnError.
+		exitCode := 2
+		if errors.Is(err, flag.ErrHelp) {
+			exitCode = 0
+		}
+		os.Exit(exitCode) //revive:disable-line:deep-exit
+	}
 
 	if versionFlag {
 		fmt.Print(getVersion(builtBy, date, commit, version))
 		return
 	}
 
+	logger, err := logging.GetLogger()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1) //revive:disable-line:deep-exit
+	}
+
+	doneTotal := timing.Track(logger, "total")
+	exitCode, err := runRevive(logger, extraRules...)
+	doneTotal("error", err)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		exitCode = 1
+	}
+
+	os.Exit(exitCode) //revive:disable-line:deep-exit
+}
+
+func runRevive(logger *slog.Logger, extraRules ...revivelib.ExtraRule) (int, error) {
+	doneConfig := timing.Track(logger, "config-load", "config", configPath)
 	conf, err := config.GetConfig(configPath)
 	if err != nil {
-		fail(err.Error())
+		return 0, err
 	}
+	doneConfig("rules", len(conf.Rules))
 
 	revive, err := revivelib.New(
 		conf,
@@ -60,7 +86,7 @@ func RunRevive(extraRules ...revivelib.ExtraRule) {
 		extraRules...,
 	)
 	if err != nil {
-		fail(err.Error())
+		return 0, err
 	}
 
 	files := flag.Args()
@@ -76,19 +102,19 @@ func RunRevive(extraRules ...revivelib.ExtraRule) {
 
 	failures, err := revive.Lint(packages...)
 	if err != nil {
-		fail(err.Error())
+		return 0, err
 	}
 
 	output, exitCode, err := revive.Format(formatterName, failures)
 	if err != nil {
-		fail(err.Error())
+		return 0, err
 	}
 
 	if output != "" {
 		fmt.Println(output)
 	}
 
-	os.Exit(exitCode) //revive:disable-line:deep-exit
+	return exitCode, nil
 }
 
 var (
@@ -144,7 +170,7 @@ func buildDefaultConfigPath() string {
 	return result
 }
 
-func initConfig() {
+func initConfig() error {
 	if os.Getenv("REVIVE_FORCE_COLOR") == "1" {
 		color.NoColor = false //nolint:reassign // We want to reassign the default value of NoColor to force colorizing for non-TTY environments.
 	}
@@ -172,7 +198,9 @@ func initConfig() {
 	flag.BoolVar(&versionFlag, "version", false, versionUsage)
 	flag.BoolVar(&setExitStatus, "set_exit_status", false, exitStatusUsage)
 	flag.IntVar(&maxOpenFiles, "max_open_files", 0, maxOpenFilesUsage)
-	flag.Parse() //revive:disable-line:deep-exit
+
+	flag.CommandLine.Init(os.Args[0], flag.ContinueOnError)
+	return flag.CommandLine.Parse(os.Args[1:])
 }
 
 // getVersion returns build info (version, commit, date, and builtBy).

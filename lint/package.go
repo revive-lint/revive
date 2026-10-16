@@ -6,12 +6,14 @@ import (
 	"go/importer"
 	"go/token"
 	"go/types"
+	"log/slog"
 	"sync"
 
 	goversion "github.com/hashicorp/go-version"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mgechev/revive/internal/astutils"
+	"github.com/mgechev/revive/internal/timing"
 	"github.com/mgechev/revive/internal/typeparams"
 )
 
@@ -28,6 +30,9 @@ type Package struct {
 	sortable map[string]bool
 	// main is whether this is a "main" package.
 	main int
+
+	logger  *slog.Logger
+	timings *timing.Rules
 }
 
 var (
@@ -139,7 +144,9 @@ func (p *Package) TypeCheck() error {
 		return errors.New("no ast.File found")
 	}
 
+	done := timing.Track(p.logger, "type-check", "package", anyFile.AST.Name.Name, "files", len(astFiles))
 	typesPkg, err := config.Check(anyFile.AST.Name.Name, p.fset, astFiles, info)
+	done("error", err)
 
 	// Remember the typechecking info, even if config.Check failed,
 	// since we will get partial information.
@@ -197,7 +204,10 @@ func (p *Package) scanSortable() {
 }
 
 func (p *Package) lint(rules []Rule, config Config, failures chan Failure) error {
+	doneSortable := timing.Track(p.logger, "scan-sortable")
 	p.scanSortable()
+	doneSortable("sortable", timing.Value(func() any { return len(p.Sortable()) }))
+
 	var eg errgroup.Group
 	for _, file := range p.Files() {
 		eg.Go(func() error {

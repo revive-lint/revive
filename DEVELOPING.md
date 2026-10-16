@@ -65,6 +65,42 @@ Logs are output to stderr:
 REVIVE_LOG_LEVEL=debug go run main.go
 ```
 
+### Timing
+
+At the `debug` level, revive also reports how long each part of a run takes. Use it to find out why a run is slow:
+
+```sh
+REVIVE_LOG_LEVEL=debug revive ./... 2>timing.log
+```
+
+Every measurement is a `phase completed` record carrying a `phase` and a `duration`:
+
+| Phase | Reported | Measures |
+| --- | --- | --- |
+| `config-load` | once | reading and parsing the configuration file |
+| `rules-setup` | once | instantiating and configuring the enabled rules |
+| `package-resolution` | once | expanding the given patterns into packages and files |
+| `go-version-detection` | once | locating `go.mod` files and detecting the Go version of every package |
+| `package-read-parse` | per package | reading the files and parsing them into ASTs |
+| `type-check` | per package | type checking, triggered lazily by the first typed rule |
+| `scan-sortable` | per package | collecting the types implementing `sort.Interface` |
+| `package-lint` | per package | the whole package: read, parse, type check, and all rules |
+| `disabled-intervals` | per file | scanning the file for `revive:disable` directives |
+| `file-lint` | per file | applying all rules to the file |
+| `lint` | once | all packages |
+| `format` | once | finishing the formatter once every failure has been delivered to it |
+| `total` | once | the whole run |
+
+The formatter runs concurrently with linting, so `format` only covers what is left after `lint`, not the whole formatting work.
+Conversely, `file-lint` and `package-lint` include the time spent waiting for the formatter to accept each failure:
+with a slow formatter or many failures, they can be high even though the rules are fast.
+
+After linting, each rule gets a `rule timing` record with its total duration, the number of applications, and the average, slowest rule first.
+A typed rule's duration includes the package type check when that rule triggers it, or waits for it while another file triggers it:
+compare it with the `type-check` records before blaming the rule.
+
+Timing is only collected when `REVIVE_LOG_LEVEL=debug`.
+
 ## Coding standards
 
 Follow [the instructions](./.github/instructions/go.instructions.md) which contain Go coding standards and conventions used by both humans and
