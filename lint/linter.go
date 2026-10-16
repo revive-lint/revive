@@ -109,12 +109,17 @@ func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-cha
 		perPkgVersions[n] = v
 	}
 
+	resolvers, err := newExportResolvers(packages)
+	if err != nil {
+		return nil, err
+	}
+
 	var wg errgroup.Group
 	for n := range packages {
 		wg.Go(func() error {
 			pkg := packages[n]
 			gover := perPkgVersions[n]
-			if err := l.lintPackage(pkg, gover, ruleSet, config, failures); err != nil {
+			if err := l.lintPackage(pkg, gover, resolvers[n], ruleSet, config, failures); err != nil {
 				return fmt.Errorf("error during linting: %w", err)
 			}
 			return nil
@@ -132,7 +137,7 @@ func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-cha
 	return failures, nil
 }
 
-func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleSet []Rule, config Config, failures chan Failure) error {
+func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, exports *moduleExports, ruleSet []Rule, config Config, failures chan Failure) error {
 	if len(filenames) == 0 {
 		return nil
 	}
@@ -141,6 +146,7 @@ func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleS
 		fset:      token.NewFileSet(),
 		files:     map[string]*File{},
 		goVersion: gover,
+		exports:   exports,
 	}
 	for _, filename := range filenames {
 		content, err := l.readFile(filename)
