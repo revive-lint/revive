@@ -63,3 +63,8 @@ const comparable = 1 // MATCH /redefinition of the built-in type comparable/
 
 func foo4[comparable any]() { // MATCH /redefinition of the built-in type comparable/
 }
+
+type ( // MATCH /redefinition of the built-in function len/
+	Local int
+	len   int
+)

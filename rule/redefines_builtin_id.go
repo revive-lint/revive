@@ -110,16 +110,15 @@ func (w *lintRedefinesBuiltinID) Visit(node ast.Node) ast.Visitor {
 	case *ast.GenDecl:
 		switch n.Tok {
 		case token.TYPE:
-			if len(n.Specs) < 1 {
-				return nil
-			}
-			typeSpec, ok := n.Specs[0].(*ast.TypeSpec)
-			if !ok {
-				return nil
-			}
-			id := typeSpec.Name.Name
-			if bt := w.builtInKind(id); bt != "" {
-				w.addFailure(n, fmt.Sprintf("redefinition of the built-in %s %s", bt, id))
+			for _, spec := range n.Specs {
+				typeSpec, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+				id := typeSpec.Name.Name
+				if bt := w.builtInKind(id); bt != "" {
+					w.addFailure(n, fmt.Sprintf("redefinition of the built-in %s %s", bt, id))
+				}
 			}
 		case token.VAR, token.CONST:
 			for _, vs := range n.Specs {
