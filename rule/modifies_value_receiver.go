@@ -146,13 +146,14 @@ func (r *ModifiesValRecRule) getReceiverModifications(receiverName string, funcB
 	receiverModificationFinder := func(n ast.Node) bool {
 		switch node := n.(type) {
 		case *ast.IncDecStmt:
-			se, ok := node.X.(*ast.SelectorExpr)
-			if !ok {
+			switch x := node.X.(type) {
+			case *ast.SelectorExpr: // receiver.field++
+				return r.getNameFromExpr(x.X) == receiverName
+			case *ast.Ident: // receiver++
+				return x.Name == receiverName
+			default:
 				return false
 			}
-
-			name := r.getNameFromExpr(se.X)
-			return name == receiverName
 		case *ast.AssignStmt:
 			// look for assignments with the receiver in the right hand
 			for _, exp := range node.Lhs {
