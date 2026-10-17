@@ -44,6 +44,16 @@ func TestStringFormatDuplicatedStrings(t *testing.T) {
 	})
 }
 
+func TestStringFormatUnquotesLiterals(t *testing.T) {
+	testRule(t, "string_format_escapes", &rule.StringFormatRule{}, &lint.RuleConfig{
+		Arguments: lint.Arguments{[]any{
+			"fmt.Errorf[0]",
+			"/[^\\n]$/",
+			"must not end with a newline",
+		}},
+	})
+}
+
 func TestStringFormatConfigureResetsPreviousRules(t *testing.T) {
 	r := &rule.StringFormatRule{}
 	testRule(t, "string_format_config_reset", r, &lint.RuleConfig{
