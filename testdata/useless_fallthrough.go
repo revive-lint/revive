@@ -76,3 +76,15 @@ func uselessFallthrough() {
 	}
 
 }
+
+func uselessFallthroughInNestedSwitch() {
+	switch outer {
+	case 0:
+		switch inner {
+		case 0:
+			fallthrough // MATCH /this "fallthrough" can be removed by consolidating this case clause with the next one/
+		case 1:
+			println()
+		}
+	}
+}
