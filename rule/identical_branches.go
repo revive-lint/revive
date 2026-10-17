@@ -19,14 +19,7 @@ func (*IdenticalBranchesRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 	}
 
 	w := &lintIdenticalBranches{onFailure: onFailure}
-	for _, decl := range file.AST.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Body == nil {
-			continue
-		}
-
-		ast.Walk(w, fn.Body)
-	}
+	ast.Walk(w, file.AST)
 
 	return failures
 }

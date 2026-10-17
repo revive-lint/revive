@@ -38,3 +38,21 @@ func identicalBranches() {
 		println("else")
 	}
 }
+
+var packageLevelFuncLit = func() {
+	if true { // MATCH /both branches of the if are identical/
+		print()
+	} else {
+		print()
+	}
+}
+
+var packageLevelFuncLitInComposite = []func(){
+	func() {
+		if true { // MATCH /both branches of the if are identical/
+			print()
+		} else {
+			print()
+		}
+	},
+}
