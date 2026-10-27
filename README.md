@@ -893,9 +893,11 @@ _Open a PR to add your project_.
 
 ### Maintainers
 
-| [<img alt="mgechev" src="https://avatars.githubusercontent.com/u/455023?v=4&s=100" width="100">](https://github.com/mgechev) | [<img alt="chavacava" src="https://avatars.githubusercontent.com/u/25788468?v=4&s=100" width="100">](https://github.com/chavacava) | [<img alt="denisvmedia" src="https://avatars.githubusercontent.com/u/5462781?v=4&s=100" width="100">](https://github.com/denisvmedia) | [<img alt="alexandear" src="https://avatars.githubusercontent.com/u/3228886?v=4&s=100" width="100">](https://github.com/alexandear) |
-|---|---|---|---|
-| [mgechev](https://github.com/mgechev) | [chavacava](https://github.com/chavacava) | [denisvmedia](https://github.com/denisvmedia) | [alexandear](https://github.com/alexandear) |
+| [<img alt="alexandear" src="https://avatars.githubusercontent.com/u/3228886?v=4&s=100" width="100">](https://github.com/alexandear) | [<img alt="chavacava" src="https://avatars.githubusercontent.com/u/25788468?v=4&s=100" width="100">](https://github.com/chavacava) | [<img alt="denisvmedia" src="https://avatars.githubusercontent.com/u/5462781?v=4&s=100" width="100">](https://github.com/denisvmedia) |
+|---|---|---|
+| [alexandear](https://github.com/alexandear) | [chavacava](https://github.com/chavacava) | [denisvmedia](https://github.com/denisvmedia) |
+
+Revive was created by [mgechev](https://github.com/mgechev).
 
 ### All
 
