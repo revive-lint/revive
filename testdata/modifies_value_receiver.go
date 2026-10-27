@@ -47,3 +47,21 @@ func (this data) assignmentOperators() {
 	this.num >>= 1 // MATCH /suspicious assignment to a by-value method receiver/
 	this.num <<= 1 // MATCH /suspicious assignment to a by-value method receiver/
 }
+
+type count int
+
+func (c count) incDec() {
+	c++ // MATCH /suspicious assignment to a by-value method receiver/
+	c-- // MATCH /suspicious assignment to a by-value method receiver/
+	other++
+}
+
+func (c count) incReturn() count {
+	c++
+	return c
+}
+
+func (c count) incPtrReturn() *count {
+	c++
+	return &c
+}
