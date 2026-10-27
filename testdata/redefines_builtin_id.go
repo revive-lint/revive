@@ -63,3 +63,26 @@ const comparable = 1 // MATCH /redefinition of the built-in type comparable/
 
 func foo4[comparable any]() { // MATCH /redefinition of the built-in type comparable/
 }
+
+// issue #1866
+type (
+	Local int
+	len   int // MATCH /redefinition of the built-in function len/
+)
+
+type (
+	A    int
+	B    int
+	make int // MATCH /redefinition of the built-in function make/
+)
+
+type (
+	C     int
+	close int // MATCH /redefinition of the built-in function close/
+)
+
+type (
+	D      int
+	byte   int // MATCH /redefinition of the built-in type byte/
+	append int // MATCH /redefinition of the built-in function append/
+)
