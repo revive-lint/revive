@@ -30,6 +30,8 @@ config:
 # Define glob expressions to use
 globs:
   - "**/*.md"
+  # Tools are vendored dependencies, not our documentation.
+  - "!tools/**"
 
 # Disable banner message on stdout
 noBanner: true
