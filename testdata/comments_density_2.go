@@ -1,4 +1,4 @@
-package fixtures // MATCH /the file has a comment density of 19% (5 comment lines for 21 code lines) but expected a minimum of 90%/
+package fixtures // MATCH /the file has a comment density of 15% (5 comment lines for 29 code lines) but expected a minimum of 90%/
 
 // datarace is function
 func datarace() (r int, c char) {

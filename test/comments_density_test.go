@@ -17,6 +17,14 @@ func TestCommentsDensity(t *testing.T) {
 	})
 
 	testRule(t, "comments_density_3", &rule.CommentsDensityRule{}, &lint.RuleConfig{})
+
+	testRule(t, "comments_density_4", &rule.CommentsDensityRule{}, &lint.RuleConfig{
+		Arguments: lint.Arguments{int64(60)},
+	})
+
+	testRule(t, "comments_density_5", &rule.CommentsDensityRule{}, &lint.RuleConfig{
+		Arguments: lint.Arguments{int64(60)},
+	})
 }
 
 func TestCommentsDensityConfigureResetsPreviousOptions(t *testing.T) {
