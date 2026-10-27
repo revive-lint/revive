@@ -21,7 +21,11 @@ func (*DeepExitRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 		failures = append(failures, failure)
 	}
 
-	w := &lintDeepExit{onFailure: onFailure, isTestFile: file.IsTest()}
+	w := &lintDeepExit{
+		onFailure:  onFailure,
+		isTestFile: file.IsTest(),
+		pkgAliases: astutils.NewExitPkgAliases(file.AST.Imports),
+	}
 	ast.Walk(w, file.AST)
 	return failures
 }
@@ -34,6 +38,7 @@ func (*DeepExitRule) Name() string {
 type lintDeepExit struct {
 	onFailure  func(lint.Failure)
 	isTestFile bool
+	pkgAliases astutils.ExitPkgAliases
 }
 
 func (w *lintDeepExit) Visit(node ast.Node) ast.Visitor {
@@ -63,16 +68,16 @@ func (w *lintDeepExit) Visit(node ast.Node) ast.Visitor {
 		return w
 	}
 
-	pkg := id.Name
 	fn := fc.Sel.Name
-	if astutils.IsCallToExitFunction(pkg, fn, ce.Args) {
+	if astutils.IsCallToExitFunction(id.Name, fn, ce.Args, w.pkgAliases) {
+		pkg := w.pkgAliases.PkgName(id.Name)
 		msg := fmt.Sprintf("calls to %s.%s only in main() or init() functions", pkg, fn)
 
 		switch {
 		case pkg == "flag" && fn == "Parse":
 			msg += "; move the call or refactor to use flag.NewFlagSet with flag.ContinueOnError"
-		case pkg == "flag" && fn == "NewFlagSet" &&
-			len(ce.Args) == 2 && astutils.IsPkgDotName(ce.Args[1], "flag", "ExitOnError"):
+		case pkg == "flag" && fn == "NewFlagSet":
+			// IsCallToExitFunction reports flag.NewFlagSet only when called with flag.ExitOnError.
 			msg = "calls to flag.NewFlagSet with flag.ExitOnError only in main() or init() functions"
 		}
 		w.onFailure(lint.Failure{

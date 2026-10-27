@@ -8,4 +8,5 @@ import (
 
 func TestUnconditionalRecursion(t *testing.T) {
 	testRule(t, "unconditional_recursion", &rule.UnconditionalRecursionRule{})
+	testRule(t, "unconditional_recursion_import_alias", &rule.UnconditionalRecursionRule{})
 }
