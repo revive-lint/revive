@@ -8,6 +8,7 @@ on:
       - 'mdsf.json'
       - '.markdownlint-cli2.yaml'
       - '.github/workflows/lint-md.yaml'
+      - 'tools/markdown-toc/**'
   push:
     branches:
       - master
@@ -44,7 +45,15 @@ jobs:
 
       - name: Setup taplo
         # https://taplo.tamasfe.dev/cli/installation/binary.html
-        run: curl -fsSL https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-linux-x86_64.gz | gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
+        env:
+          TAPLO_VERSION: 0.10.0
+          TAPLO_SHA256: 8fe196b894ccf9072f98d4e1013a180306e17d244830b03986ee5e8eabeb6156
+        run: |
+          curl -fsSL -o taplo.gz "https://github.com/tamasfe/taplo/releases/download/${TAPLO_VERSION}/taplo-linux-x86_64.gz"
+          echo "${TAPLO_SHA256}  taplo.gz" | sha256sum --check --strict -
+          gzip -d taplo.gz
+          install -m 755 taplo /usr/local/bin/taplo
+          rm taplo
 
       - name: Set up Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -52,7 +61,10 @@ jobs:
           node-version: '24'
 
       - name: Install markdown-toc
-        run: npm install -g markdown-toc@1.2.0
+        working-directory: tools/markdown-toc
+        run: |
+          npm ci --ignore-scripts
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Verify files format using markdownlint-cli2
         uses: DavidAnson/markdownlint-cli2-action@07035fd053f7be764496c0f8d8f9f41f98305101 # v22.0.0

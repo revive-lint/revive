@@ -29,6 +29,13 @@
       "enabled": true
     },
     {
+      "matchManagers": ["npm"],
+      "matchFileNames": ["tools/markdown-toc/package.json", "tools/renovate/package.json"],
+      "groupName": "tools npm",
+      "extends": ["schedule:monthly"],
+      "enabled": true
+    },
+    {
       "matchManagers": ["github-actions"],
       "groupName": "github actions",
       "extends": ["schedule:monthly"],

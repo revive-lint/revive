@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/renovate.yaml'
       - 'renovate.json'
+      - 'tools/renovate/**'
   push:
     branches:
       - master
@@ -28,7 +29,8 @@ jobs:
           node-version: '24'
 
       - name: Install Renovate
-        run: npm install -g renovate@43.150.0
+        working-directory: tools/renovate
+        run: npm ci --ignore-scripts
 
       - name: Validate renovate.json
-        run: renovate-config-validator
+        run: tools/renovate/node_modules/.bin/renovate-config-validator
