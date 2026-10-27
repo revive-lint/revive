@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"go/types"
 	"log/slog"
+	"slices"
 	"sync"
 
 	goversion "github.com/hashicorp/go-version"
@@ -141,8 +142,17 @@ func (p *Package) TypeCheck() error {
 	}
 	var anyFile *File
 	var astFiles []*ast.File
-	for _, f := range p.files {
-		anyFile = f
+	filenames := make([]string, 0, len(p.files))
+	for name := range p.files {
+		filenames = append(filenames, name)
+	}
+	slices.Sort(filenames)
+
+	for _, name := range filenames {
+		f := p.files[name]
+		if anyFile == nil || (!f.IsTest() && anyFile.IsTest()) {
+			anyFile = f
+		}
 		astFiles = append(astFiles, f.AST)
 	}
 
