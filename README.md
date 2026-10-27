@@ -3,6 +3,7 @@
 [![Build Status](https://github.com/revive-lint/revive/actions/workflows/test.yaml/badge.svg)](https://github.com/revive-lint/revive/actions/workflows/test.yaml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mgechev/revive.svg)](https://pkg.go.dev/github.com/mgechev/revive)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/revive-lint/revive)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15967/badge)](https://www.bestpractices.dev/projects/15967)
 
 Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
 **`Revive` provides a framework for development of custom rules,
