@@ -72,7 +72,7 @@ var (
 	timeDateArity = len(timeDateArgumentNames)
 )
 
-var timeDateArgumentBoundaries = map[timeDateArgument][2]int64{
+var timeDateArgumentBoundaries = map[timeDateArgument][2]int{
 	// year is not validated
 	timeDateArgMonth:      {1, 12},
 	timeDateArgDay:        {1, 31}, // there is a special check for this field, this is just a fallback
@@ -83,7 +83,7 @@ var timeDateArgumentBoundaries = map[timeDateArgument][2]int64{
 }
 
 type timeDateMonthYear struct {
-	year, month int64
+	year, month int
 }
 
 func (w *lintTimeDate) Visit(n ast.Node) ast.Visitor {
@@ -175,7 +175,7 @@ func (w *lintTimeDate) Visit(n ast.Node) ast.Visitor {
 					monthName := month.String()
 					if month == time.February {
 						// because of leap years, we need to provide the year in the error message
-						monthName += " " + strconv.FormatInt(parsedDate.year, 10)
+						monthName += " " + strconv.Itoa(parsedDate.year)
 					}
 
 					if parsedValue > maxValue {
@@ -250,7 +250,7 @@ func (w *lintTimeDate) Visit(n ast.Node) ast.Visitor {
 
 		confidence := 0.8 // default confidence
 		errMessage := err.Error()
-		replacedValue := strconv.FormatInt(parsedValue, 10)
+		replacedValue := strconv.Itoa(parsedValue)
 		instructions := fmt.Sprintf("use %s instead of %s", replacedValue, astutils.GoFmt(arg))
 		switch {
 		case errors.Is(err, errParsedOctalWithZero):
@@ -361,15 +361,15 @@ func (w *lintTimeDate) checkArgSign(arg ast.Node, fieldName timeDateArgument) (*
 
 // isLeapYear checks if the year is a leap year.
 // This is used to check if the date is valid according to Go implementation.
-func (*lintTimeDate) isLeapYear(year int64) bool {
+func (*lintTimeDate) isLeapYear(year int) bool {
 	// We cannot use the classic formula of
 	// year%4 == 0 && (year%100 != 0 || year%400 == 0)
 	// because we want to ensure what time.Date will compute
 
-	return time.Date(int(year), time.February, 29, 0, 0, 0, 0, time.UTC).Format("01-02") == "02-29"
+	return time.Date(year, time.February, 29, 0, 0, 0, 0, time.UTC).Format("01-02") == "02-29"
 }
 
-func (w *lintTimeDate) daysInMonth(year int64, month time.Month) int64 {
+func (w *lintTimeDate) daysInMonth(year int, month time.Month) int {
 	switch month {
 	case time.April, time.June, time.September, time.November:
 		return 30
@@ -395,7 +395,7 @@ var (
 	errParsedInvalid                = errors.New("invalid notation")
 )
 
-func parseDecimalInteger(bl *ast.BasicLit) (int64, error) {
+func parseDecimalInteger(bl *ast.BasicLit) (int, error) {
 	currentValue := strings.ToLower(bl.Value)
 
 	if currentValue == "0" {
@@ -419,10 +419,10 @@ func parseDecimalInteger(bl *ast.BasicLit) (int64, error) {
 
 		// this will convert back the number to a string
 		if strings.Contains(currentValue, "e") {
-			return int64(parsedValue), errParsedExponential
+			return int(parsedValue), errParsedExponential
 		}
 
-		return int64(parsedValue), errParsedFloat
+		return int(parsedValue), errParsedFloat
 
 	case token.INT:
 		// we expect this format
@@ -436,10 +436,11 @@ func parseDecimalInteger(bl *ast.BasicLit) (int64, error) {
 		)
 	}
 
-	// Parse the number with base=0 that allows to accept all number formats and base
-	parsedValue, err := strconv.ParseInt(currentValue, 0, 64)
+	// Parse the number with base=0 that allows to accept all number formats and base.
+	// Values that do not fit in an int, like out of range years, are not supported.
+	parsed, err := strconv.ParseInt(currentValue, 0, strconv.IntSize)
 	if err != nil {
-		// This is not supposed to happen
+		// The value does not fit in an int, or is not a number at all
 		return 0, fmt.Errorf(
 			"%w: %s: %w",
 			errParsedInvalid,
@@ -447,6 +448,7 @@ func parseDecimalInteger(bl *ast.BasicLit) (int64, error) {
 			err,
 		)
 	}
+	parsedValue := int(parsed)
 
 	// Let's figure out the notation to return an error
 	switch {
@@ -472,7 +474,7 @@ func parseDecimalInteger(bl *ast.BasicLit) (int64, error) {
 	}
 
 	// Convert back the number to a string, and compare it with the original one
-	formattedValue := strconv.FormatInt(parsedValue, 10)
+	formattedValue := strconv.Itoa(parsedValue)
 	if formattedValue != currentValue {
 		// This can catch some edge cases like: 1_0 ...
 		return parsedValue, errParsedAlternative
