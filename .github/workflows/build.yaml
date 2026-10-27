@@ -10,6 +10,7 @@ on:
       - 'tools/**'
       - 'Makefile'
       - 'Dockerfile'
+      - '.dockerignore'
       - '.github/workflows/build.yaml'
   push:
     branches:

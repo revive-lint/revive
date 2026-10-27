@@ -14,7 +14,7 @@ WORKDIR /src
 COPY . .
 
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
-    -ldflags "-X github.com/mgechev/revive/cli.version=${VERSION} -X github.com/mgechev/revive/cli.commit=${REVISION} -X github.com/mgechev/revive/cli.date=${BUILDTIME} -X github.com/mgechev/revive/cli.builtBy=${BUILDER}"
+    -ldflags "-X 'github.com/mgechev/revive/cli.version=${VERSION}' -X 'github.com/mgechev/revive/cli.commit=${REVISION}' -X 'github.com/mgechev/revive/cli.date=${BUILDTIME}' -X 'github.com/mgechev/revive/cli.builtBy=${BUILDER}'"
 
 FROM scratch
 

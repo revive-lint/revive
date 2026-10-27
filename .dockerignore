@@ -1,0 +1,20 @@
+# Only the Go sources, go.mod and go.sum are needed to build the binary.
+# Everything else bloats the build context and busts the layer cache.
+
+.git
+.github
+.claude
+.vscode
+.DS_Store
+
+# Local build outputs; `revive` would otherwise be a host-arch binary in /src.
+bin/
+revive
+
+# Node modules for the Markdown/Renovate helpers (hundreds of MB).
+tools/
+
+assets/
+test/
+testdata/
+*.md
