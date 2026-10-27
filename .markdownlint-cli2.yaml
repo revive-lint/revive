@@ -4,6 +4,9 @@
 # Fix any fixable errors
 fix: false
 
+# Skip gitignored paths, e.g. vendored node_modules.
+gitignore: true
+
 # Rules description can be found at https://github.com/DavidAnson/markdownlint/blob/HEAD/doc/Rules.md
 config:
   # Default state for all rules
@@ -30,8 +33,6 @@ config:
 # Define glob expressions to use
 globs:
   - "**/*.md"
-  # Tools are vendored dependencies, not our documentation.
-  - "!tools/**"
 
 # Disable banner message on stdout
 noBanner: true
