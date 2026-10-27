@@ -128,12 +128,17 @@ func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-cha
 	}
 
 	doneLint := timing.Track(l.logger, "lint")
+	resolvers, err := newExportResolvers(packages)
+	if err != nil {
+		return nil, err
+	}
+
 	var wg errgroup.Group
 	for n := range packages {
 		wg.Go(func() error {
 			pkg := packages[n]
 			gover := perPkgVersions[n]
-			if err := l.lintPackage(pkg, gover, ruleSet, config, failures); err != nil {
+			if err := l.lintPackage(pkg, gover, resolvers[n], ruleSet, config, failures); err != nil {
 				return fmt.Errorf("error during linting: %w", err)
 			}
 			return nil
@@ -153,7 +158,7 @@ func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-cha
 	return failures, nil
 }
 
-func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleSet []Rule, config Config, failures chan Failure) error {
+func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, exports *moduleExports, ruleSet []Rule, config Config, failures chan Failure) error {
 	if len(filenames) == 0 {
 		return nil
 	}
@@ -163,6 +168,7 @@ func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleS
 		files:     map[string]*File{},
 		goVersion: gover,
 		logger:    l.logger,
+		exports:   exports,
 	}
 
 	// Timing attributes are boxed into interfaces, which allocates: build them only when they are logged.
