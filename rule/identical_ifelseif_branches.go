@@ -24,14 +24,7 @@ func (*IdenticalIfElseIfBranchesRule) Apply(file *lint.File, _ lint.Arguments) [
 	}
 
 	w := &rootWalkerIfElseIfIdenticalBranches{getStmtLine: getStmtLine, onFailure: onFailure}
-	for _, decl := range file.AST.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Body == nil {
-			continue
-		}
-
-		ast.Walk(w, fn.Body)
-	}
+	ast.Walk(w, file.AST)
 
 	return failures
 }

@@ -64,14 +64,7 @@ func (r *IdenticalSwitchBranchesRule) Apply(file *lint.File, _ lint.Arguments) [
 		onFailure:             onFailure,
 		allowIdenticalDefault: r.allowIdenticalDefault,
 	}
-	for _, decl := range file.AST.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Body == nil {
-			continue
-		}
-
-		ast.Walk(w, fn.Body)
-	}
+	ast.Walk(w, file.AST)
 
 	return failures
 }

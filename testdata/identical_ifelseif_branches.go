@@ -78,3 +78,11 @@ func identicalIfElseIfBranches() {
 		bar()
 	}
 }
+
+var packageLevelFuncLit = func() {
+	if a { // MATCH /"if...else if" chain with identical branches (lines 83 and 85)/
+		foo()
+	} else if b {
+		foo()
+	}
+}
