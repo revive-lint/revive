@@ -102,6 +102,7 @@ List of all available rules.
 - [use-any](#use-any)
 - [use-errors-new](#use-errors-new)
 - [use-fmt-print](#use-fmt-print)
+- [use-new](#use-new)
 - [use-slices-concat](#use-slices-concat)
 - [use-slices-sort](#use-slices-sort)
 - [use-waitgroup-go](#use-waitgroup-go)
@@ -2778,6 +2779,41 @@ _Description_: This rule proposes to replace calls to built-in `print` and `prin
 [language bootstrapping and are not guaranteed to stay in the language](https://go.dev/ref/spec#Bootstrapping).
 
 _Configuration_: N/A
+
+## use-new
+
+_Go version_: >= 1.26.
+
+_Revive version_: [v1.18.0](https://github.com/revive-lint/revive/releases/tag/v1.18.0).
+
+_Description_: Since Go 1.26 the `new` built-in function accepts a value: `new(expr)` allocates a variable initialized with `expr`
+and yields its address.
+The rule proposes to replace a variable declared just to take its address, which does the same in a more convoluted way,
+with a call to `new`.
+
+### Examples (use-new)
+
+Before (violation):
+
+```go
+timeout := float64(*seconds)
+configTimeout := &timeout
+
+count := 42
+return &count
+```
+
+After (fixed):
+
+```go
+configTimeout := new(float64(*seconds))
+
+return new(42)
+```
+
+_Configuration_: N/A
+
+_Note_: This rule is irrelevant for Go 1.25-.
 
 ## use-slices-concat
 
