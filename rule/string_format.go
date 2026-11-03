@@ -273,8 +273,12 @@ func (r *stringFormatSubrule) apply(call *ast.CallExpr, scope *stringFormatSubru
 		return
 	}
 
-	// Unquote the string literal before linting
-	unquoted := lit.Value[1 : len(lit.Value)-1]
+	// Unquote the string literal before linting, so the regex sees the string contents
+	// rather than its source spelling (e.g. a newline instead of a backslash and an "n")
+	unquoted, err := strconv.Unquote(lit.Value)
+	if err != nil {
+		unquoted = lit.Value[1 : len(lit.Value)-1]
+	}
 	if r.stringIsOK(unquoted) {
 		return
 	}
