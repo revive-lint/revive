@@ -4,7 +4,7 @@ set -eu
 
 image="${1:?usage: smoke.sh IMAGE}"
 dir="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
-want='main.go:12:14: use t1.Equal(t2) instead of "==" operator'
+want='main.go:11:14: use t1.Equal(t2) instead of "==" operator'
 
 for user in root 1000:1000; do
 	status=0

@@ -1,4 +1,3 @@
-// Package main is the fixture for the Docker smoke test; see smoke.sh.
 package main
 
 import (
