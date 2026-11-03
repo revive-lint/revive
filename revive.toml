@@ -6,7 +6,6 @@ severity = "warning"
 confidence = 0.8
 error-code = 1
 warning-code = 1
-exclude = ["test/docker/..."]
 
 [rule.add-constant]
     disabled = true
