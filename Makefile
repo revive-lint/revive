@@ -1,4 +1,4 @@
-.PHONY: all install tidy build lint fmt test docker-build docker-run
+.PHONY: all install tidy build lint fmt test docker-build docker-run docker-smoke
 
 GIT_COMMIT ?= $(shell git rev-parse --verify HEAD)
 GIT_VERSION ?= $(shell git describe --tags --always --dirty="-dev")
@@ -38,6 +38,9 @@ docker-build:
 		--build-arg BUILDER='$(BUILDER)' \
 		$(if $(PLATFORM),--platform '$(PLATFORM)') \
 		--load -t '$(IMAGE)' .
+
+docker-smoke: docker-build
+	@./test/docker/smoke.sh '$(IMAGE)'
 
 docker-run: docker-build
 	@docker run --rm -v '$(CURDIR)':/app -w /app '$(IMAGE)' $(ARGS)
