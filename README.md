@@ -122,18 +122,8 @@ go install github.com/mgechev/revive@HEAD
 You can run `revive` using Docker to avoid installing it directly on your system:
 
 ```bash
-docker run -v "$(pwd)":/var/YOUR_REPOSITORY ghcr.io/mgechev/revive:v1.16.0 -config /var/YOUR_REPOSITORY/revive.toml -formatter stylish ./var/YOUR_REPOSITORY/...
+docker run --rm -v "$(pwd)":/app -w /app ghcr.io/revive-lint/revive:latest -config /app/revive.toml -formatter stylish ./...
 ```
-
-_Note_: Replace `YOUR_REPOSITORY` with the path to your repository.
-
-A volume must be mounted to share the current repository with the container.
-For more details, refer to the [bind mounts Docker documentation](https://docs.docker.com/storage/bind-mounts/).
-
-- `-v`: Mounts the current directory (`$(pwd)`) to `/var/YOUR_REPOSITORY` inside the container.
-- `ghcr.io/mgechev/revive:v1.16.0`: Specifies the Docker image and its version.
-- `revive`: The command to run inside the container.
-- Flags like `-config` and `-formatter` are the same as when using the binary directly.
 
 _Note_: images up to and including `v1.16.0` are published at `ghcr.io/mgechev/revive`.
 Later releases are published at `ghcr.io/revive-lint/revive`.

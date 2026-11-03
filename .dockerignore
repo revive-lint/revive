@@ -17,4 +17,6 @@ tools/
 assets/
 test/
 testdata/
+Makefile
+*.json
 *.md
