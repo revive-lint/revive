@@ -78,11 +78,36 @@ func (*UnexportedReturnRule) Name() string {
 // It is imprecise, and will err on the side of returning true,
 // such as for composite types.
 func exportedType(typ types.Type) bool {
+	if typ == nil {
+		return true
+	}
 	switch t := typ.(type) {
 	case *types.Alias:
-		return exportedTypeName(t.Obj())
+		if !exportedTypeName(t.Obj()) {
+			return false
+		}
+		typeArgs := t.TypeArgs()
+		if typeArgs != nil {
+			for arg := range typeArgs.Types() {
+				if !exportedType(arg) {
+					return false
+				}
+			}
+		}
+		return true
 	case *types.Named:
-		return exportedTypeName(t.Obj())
+		if !exportedTypeName(t.Obj()) {
+			return false
+		}
+		typeArgs := t.TypeArgs()
+		if typeArgs != nil {
+			for arg := range typeArgs.Types() {
+				if !exportedType(arg) {
+					return false
+				}
+			}
+		}
+		return true
 	case *types.Map:
 		return exportedType(t.Key()) && exportedType(t.Elem())
 	case interface {
