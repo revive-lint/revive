@@ -88,6 +88,7 @@ List of all available rules.
 - [time-equal](#time-equal)
 - [time-naming](#time-naming)
 - [unchecked-type-assertion](#unchecked-type-assertion)
+- [unclosed-http-body](#unclosed-http-body)
 - [unconditional-recursion](#unconditional-recursion)
 - [unexported-naming](#unexported-naming)
 - [unexported-return](#unexported-return)
@@ -2461,6 +2462,62 @@ Configuration example:
 [rule.unchecked-type-assertion]
 arguments = [{ accept-ignored-assertion-result = true }]
 ```
+
+## unclosed-http-body
+
+_Go version_: 1.0.
+
+_Revive version_: TBD.
+
+**_Typed_**
+
+_Description_: An `*http.Response` whose `Body` is never closed leaks the underlying connection.
+This rule warns on calls returning an `*http.Response` when, in the calling function, the body is neither closed
+nor passed elsewhere. The rule considers the body handled if `Body.Close` is called anywhere in the function
+(directly, deferred, or in a closure), or if the response or its body leaves the function:
+it is returned, stored in a field, a global variable, or a composite literal, sent on a channel,
+or passed to a function whose parameter is not an interface (like `*http.Response`) or, for the body, has a `Close` method (like `io.Closer`).
+In these cases the rule assumes the receiver closes the body. The rule does not check that the body is closed on every code path.
+Responses from `httptest.ResponseRecorder.Result` are ignored.
+
+### Examples (unclosed-http-body)
+
+Before (violation):
+
+```go
+import (
+	"io"
+	"net/http"
+)
+
+func fetch(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	return io.ReadAll(resp.Body)
+}
+```
+
+After (fixed):
+
+```go
+import (
+	"io"
+	"net/http"
+)
+
+func fetch(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return io.ReadAll(resp.Body)
+}
+```
+
+_Configuration_: N/A
 
 ## unconditional-recursion
 
