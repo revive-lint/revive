@@ -1399,13 +1399,30 @@ _Revive version_: [v1.0.0](https://github.com/revive-lint/revive/releases/tag/v1
 
 _Description_: Warns when importing block-listed packages.
 
-_Configuration_: block-list of package names (or regular expression package names).
+_Configuration_: a list of entries. Each entry is either:
 
-Configuration example:
+- a string: a package path (or package path pattern with `**`) that is blocklisted in every file
+- a map:
+  - `packages` (required): list of package path patterns
+  - `paths` (optional): list of file filters using the same syntax as rule-level `Exclude`
+    (`pkg/mypkg/my.go`, `**/*.go`, `~regexp`, `TEST`). When set, the packages are only
+    blocklisted in matching files
+
+Configuration examples:
 
 ```toml
 [rule.imports-blocklist]
+# Global: these packages are forbidden everywhere
 arguments = ["crypto/md5", "crypto/sha1", "crypto/**/pkix"]
+```
+
+```toml
+[rule.imports-blocklist]
+# Mix global bans with a path-scoped ban (pkg/ must not import cmd/)
+arguments = [
+  "crypto/md5",
+  { paths = ["**/pkg/**"], packages = ["**/cmd/**"] },
+]
 ```
 
 ## increment-decrement
