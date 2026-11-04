@@ -1,6 +1,7 @@
 package rule
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 
@@ -80,10 +81,10 @@ func parseImportsBlocklistMap(args map[string]any) (importsBlocklistEntry, error
 	}
 
 	if !havePkgs {
-		return importsBlocklistEntry{}, fmt.Errorf("missing required option \"packages\"")
+		return importsBlocklistEntry{}, errors.New("missing required option \"packages\"")
 	}
 	if len(packages) == 0 {
-		return importsBlocklistEntry{}, fmt.Errorf("option \"packages\" must not be empty")
+		return importsBlocklistEntry{}, errors.New("option \"packages\" must not be empty")
 	}
 
 	return newImportsBlocklistEntry(packages, paths)
