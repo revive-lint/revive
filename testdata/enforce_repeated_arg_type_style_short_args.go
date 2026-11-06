@@ -19,3 +19,5 @@ func singleArgFunction(a int) {} // Must not match - only one argument
 func multiTypeArgs(a int, b string, c float64) {} // Must not match - different types for each argument
 
 func mixedCompliance(a, b int, c int, d string) {} // MATCH /repeated argument type "int" can be omitted/ - 'c int' could be combined with 'a, b int'
+
+func unnamedArgs(int, int, string) {} // Must not match - unnamed arguments cannot be grouped

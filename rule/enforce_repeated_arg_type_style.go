@@ -135,7 +135,7 @@ func (r *EnforceRepeatedArgTypeStyleRule) Apply(file *lint.File, _ lint.Argument
 					for _, field := range fn.Type.Params.List {
 						prevTypeStr := astutils.GoFmt(prevType)
 						currentTypeStr := astutils.GoFmt(field.Type)
-						if currentTypeStr == prevTypeStr {
+						if field.Names != nil && currentTypeStr == prevTypeStr {
 							failures = append(failures, lint.Failure{
 								Confidence: 1,
 								Node:       prevType,
