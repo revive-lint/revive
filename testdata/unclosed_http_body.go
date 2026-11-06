@@ -518,3 +518,118 @@ func delegatingWrapper() error {
 	defer resp.Body.Close()
 	return nil
 }
+
+// Cases from real-world code.
+
+// Like sandbox0-ai/sdk-go response_normalize.go and grafana harcapture.go:
+// a helper reads and closes the body of a response parameter, then replaces it with a no-op closer.
+func normalizeResponse(resp *http.Response) error {
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	_ = resp.Body.Close()
+	resp.Body = io.NopCloser(bytes.NewReader(b))
+	return nil
+}
+
+func callerOfNormalizeResponse() (*http.Response, error) {
+	resp, err := http.Get("http://example.com/")
+	if err != nil {
+		return nil, err
+	}
+	if err := normalizeResponse(resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// Like projectdiscovery/rawhttp pipelineclient.go: the response is a value whose body does not need to be closed.
+func rawResponse(r io.Reader) (*http.Response, error) {
+	resp := http.Response{StatusCode: http.StatusOK, Header: make(http.Header)}
+	resp.Body = io.NopCloser(r)
+	return &resp, nil
+}
+
+func callerOfRawResponse(r io.Reader) int {
+	resp, err := rawResponse(r)
+	if err != nil {
+		return 0
+	}
+	return resp.StatusCode
+}
+
+// Like kubernetes/apimachinery upgradeaware.go onewayRoundTripper: a literal response with a no-op body.
+type fakeRoundTripper struct{}
+
+func (fakeRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(&bytes.Buffer{}),
+		Request:    req,
+	}, nil
+}
+
+func callerOfFakeRoundTripper(req *http.Request) int {
+	resp, err := fakeRoundTripper{}.RoundTrip(req)
+	if err != nil {
+		return 0
+	}
+	return resp.StatusCode
+}
+
+// Like kubernetes/apimachinery upgradeaware.go getResponse and its caller:
+// the response is read from a tee reader, then written, which closes its body.
+func readTeeResponse(r io.Reader) (*http.Response, []byte, error) {
+	raw := bytes.NewBuffer(make([]byte, 0, 256))
+	resp, err := http.ReadResponse(bufio.NewReader(io.TeeReader(r, raw)), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, raw.Bytes(), nil
+}
+
+func writtenResponse(r io.Reader, w io.Writer) bool {
+	resp, _, err := readTeeResponse(r)
+	if err != nil {
+		return false
+	}
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		_ = resp.Write(w) // closes the body
+		return true
+	}
+	return false
+}
+
+func readResponseNotClosed(r io.Reader) int {
+	resp, err := http.ReadResponse(bufio.NewReader(r), nil) // MATCH /response body must be closed/
+	if err != nil {
+		return 0
+	}
+	return resp.StatusCode
+}
+
+func teeNopCloserNotClosed(buf io.Writer) error {
+	resp, err := http.Get("http://example.com/") // MATCH /response body must be closed/
+	if err != nil {
+		return err
+	}
+	resp.Body = io.NopCloser(io.TeeReader(resp.Body, buf))
+	defer resp.Body.Close() // closes the no-op wrapper, the original body leaks
+	_, err = io.ReadAll(resp.Body)
+	return err
+}
+
+func teeDelegatingWrapper(buf io.Writer) error {
+	resp, err := http.Get("http://example.com/")
+	if err != nil {
+		return err
+	}
+	resp.Body = struct {
+		io.Reader
+		io.Closer
+	}{io.TeeReader(resp.Body, buf), resp.Body}
+	defer resp.Body.Close()
+	_, err = io.ReadAll(resp.Body)
+	return err
+}

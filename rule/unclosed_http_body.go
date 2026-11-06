@@ -295,19 +295,37 @@ func (w *lintUnclosedHTTPBody) returnsNopBody(call *ast.CallExpr) bool {
 	result := false
 	if decl := w.funcDecl(fn); decl != nil && decl.Body != nil {
 		ast.Inspect(decl.Body, func(node ast.Node) bool {
-			assign, ok := node.(*ast.AssignStmt)
-			if result || !ok {
-				return !result
+			switch n := node.(type) {
+			case *ast.AssignStmt:
+				result = slices.ContainsFunc(w.nopBodyTargets(n), func(x ast.Expr) bool {
+					return isHTTPResponseOrValue(w.info.TypeOf(x))
+				})
+			case *ast.CompositeLit:
+				result = w.isNopBodyResponseLit(n)
 			}
-			result = slices.ContainsFunc(w.nopBodyTargets(assign), func(x ast.Expr) bool {
-				return isHTTPResponse(w.info.TypeOf(x))
-			})
 			return !result
 		})
 	}
 
 	w.nopBodyFuncs[fn] = result
 	return result
+}
+
+// isNopBodyResponseLit tells if the composite literal is an [http.Response] with a body that does not need to be closed,
+// like a call to [io.NopCloser].
+func (w *lintUnclosedHTTPBody) isNopBodyResponseLit(lit *ast.CompositeLit) bool {
+	if !isHTTPResponseOrValue(w.info.TypeOf(lit)) {
+		return false
+	}
+
+	return slices.ContainsFunc(lit.Elts, func(elt ast.Expr) bool {
+		kv, ok := elt.(*ast.KeyValueExpr)
+		if !ok {
+			return false
+		}
+		key, ok := kv.Key.(*ast.Ident)
+		return ok && key.Name == "Body" && w.isNopBody(kv.Value)
+	})
 }
 
 // funcDecl returns the declaration of the function in the package, or nil if it is not found.
@@ -417,6 +435,9 @@ func (w *lintUnclosedHTTPBody) isResponseHandled(stack []ast.Node) bool {
 	id := stack[len(stack)-1]
 	switch parent := parentOf(stack).(type) {
 	case *ast.SelectorExpr:
+		if w.isResponseWriteCall(stack[:len(stack)-1]) {
+			return true // Response.Write closes the body after sending it
+		}
 		if parent.Sel.Name != "Body" {
 			return false // other fields and methods, like resp.StatusCode
 		}
@@ -436,6 +457,22 @@ func (w *lintUnclosedHTTPBody) isResponseHandled(stack []ast.Node) bool {
 
 	// returned, sent, stored in a composite literal, address taken, ...
 	return true
+}
+
+// isResponseWriteCall tells if the selector (the last node of the stack) is a call to [http.Response.Write].
+func (w *lintUnclosedHTTPBody) isResponseWriteCall(stack []ast.Node) bool {
+	sel, ok := stack[len(stack)-1].(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+
+	call, ok := parentOf(stack).(*ast.CallExpr)
+	if !ok || call.Fun != sel {
+		return false
+	}
+
+	fn, ok := w.info.Uses[sel.Sel].(*types.Func)
+	return ok && fn.FullName() == "(*net/http.Response).Write"
 }
 
 // isBodyHandled tells if the use of a response body (the last node of the stack) closes it
@@ -559,6 +596,11 @@ func hasCloseMethod(t types.Type) bool {
 
 func isHTTPResponse(t types.Type) bool {
 	return astutils.IsPointerToPkgDotType(types.Unalias(t), "net/http", "Response")
+}
+
+// isHTTPResponseOrValue tells if the type is http.Response or *http.Response.
+func isHTTPResponseOrValue(t types.Type) bool {
+	return t != nil && (isHTTPResponse(t) || isHTTPResponse(types.NewPointer(types.Unalias(t))))
 }
 
 func identsToExprs(idents []*ast.Ident) []ast.Expr {
