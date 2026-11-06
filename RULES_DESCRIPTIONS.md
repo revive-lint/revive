@@ -2478,7 +2478,10 @@ nor passed elsewhere. The rule considers the body handled if `Body.Close` is cal
 it is returned, stored in a field, a global variable, or a composite literal, sent on a channel,
 or passed to a function whose parameter is not an interface (like `*http.Response`) or, for the body, has a `Close` method (like `io.Closer`).
 In these cases the rule assumes the receiver closes the body. The rule does not check that the body is closed on every code path.
-Responses from `httptest.ResponseRecorder.Result` are ignored.
+Once `Body` is replaced by `io.NopCloser(...)` or `http.NoBody`, later uses no longer close the original body;
+this includes a deferred function literal, which reads `Body` only when the function returns.
+Responses from `httptest.ResponseRecorder.Result` are ignored, as are responses returned by functions of the same package
+that replace their `Body` with `io.NopCloser(...)` or `http.NoBody`. Such functions declared in other packages are not analyzed.
 
 ### Examples (unclosed-http-body)
 

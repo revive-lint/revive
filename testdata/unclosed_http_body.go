@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -406,4 +407,114 @@ func passedToDeferredLiteral() {
 func newResponse() *http.Response {
 	r := new(http.Response)
 	return r
+}
+
+// io.NopCloser cases.
+
+func closedAfterNopCloser() ([]byte, error) {
+	resp, err := http.Get("http://example.com/") // MATCH /response body must be closed/
+	if err != nil {
+		return nil, err
+	}
+	b, err := io.ReadAll(resp.Body)
+	resp.Body = io.NopCloser(bytes.NewReader(b))
+	defer resp.Body.Close() // closes the no-op wrapper, the original body leaks
+	return b, err
+}
+
+func deferredLiteralBeforeNopCloser() ([]byte, error) {
+	resp, err := http.Get("http://example.com/") // MATCH /response body must be closed/
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		resp.Body.Close() // runs after the replacement, closes the no-op wrapper
+	}()
+	b, err := io.ReadAll(resp.Body)
+	resp.Body = io.NopCloser(bytes.NewReader(b))
+	return b, err
+}
+
+func returnedAfterNopCloserNotClosed() (*http.Response, error) {
+	resp, err := http.Get("http://example.com/") // MATCH /response body must be closed/
+	if err != nil {
+		return nil, err
+	}
+	b, err := io.ReadAll(resp.Body)
+	resp.Body = io.NopCloser(bytes.NewReader(b))
+	return resp, err
+}
+
+func replacedWithNoBody() int {
+	resp, _ := http.Get("http://example.com/") // MATCH /response body must be closed/
+	resp.Body = http.NoBody
+	defer resp.Body.Close()
+	return resp.StatusCode
+}
+
+func bufferedResponse(url string) (*http.Response, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	b, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(b))
+	return resp, nil
+}
+
+func callerOfBufferedResponse() int {
+	resp, err := bufferedResponse("http://example.com/") // the body is a no-op closer
+	if err != nil {
+		return 0
+	}
+	return resp.StatusCode
+}
+
+func deferredCloseBeforeNopCloser() (*http.Response, error) {
+	resp, err := http.Get("http://example.com/")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close() // resp.Body is evaluated before the replacement
+	b, err := io.ReadAll(resp.Body)
+	resp.Body = io.NopCloser(bytes.NewReader(b))
+	return resp, err
+}
+
+func aliasClosedAfterNopCloser() ([]byte, error) {
+	resp, err := http.Get("http://example.com/")
+	if err != nil {
+		return nil, err
+	}
+	body := resp.Body
+	b, err := io.ReadAll(body)
+	resp.Body = io.NopCloser(bytes.NewReader(b))
+	defer body.Close()
+	return b, err
+}
+
+func deferredLiteralAfterNopCloserOfOtherResponse() {
+	resp, _ := http.Get("http://example.com/")
+	defer func() {
+		resp.Body.Close()
+	}()
+	other := new(http.Response)
+	other.Body = io.NopCloser(bytes.NewReader(nil))
+}
+
+func delegatingWrapper() error {
+	resp, err := http.Get("http://example.com/")
+	if err != nil {
+		return err
+	}
+	resp.Body = struct {
+		io.Reader
+		io.Closer
+	}{bufio.NewReader(resp.Body), resp.Body}
+	defer resp.Body.Close()
+	return nil
 }

@@ -23,7 +23,7 @@ func (*UnclosedHTTPBodyRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fai
 		return nil
 	}
 
-	w := &lintUnclosedHTTPBody{info: file.Pkg.TypesInfo()}
+	w := &lintUnclosedHTTPBody{info: file.Pkg.TypesInfo(), pkg: file.Pkg, nopBodyFuncs: map[*types.Func]bool{}}
 	for _, decl := range file.AST.Decls {
 		w.checkDecl(decl)
 	}
@@ -40,9 +40,12 @@ const unclosedHTTPBodyMessage = "response body must be closed"
 
 type lintUnclosedHTTPBody struct {
 	info     *types.Info
+	pkg      *lint.Package
 	failures []lint.Failure
 	// decl is the top-level declaration being checked.
 	decl ast.Decl
+	// nopBodyFuncs caches, for functions of the package, if they replace the body of a response with a no-op closer.
+	nopBodyFuncs map[*types.Func]bool
 }
 
 // httpResponseProducer is a call that returns an *http.Response bound to a local variable.
@@ -59,6 +62,9 @@ type httpResponseUse struct {
 	pos token.Pos
 	// lit is the innermost function literal enclosing the use, if any.
 	lit *ast.FuncLit
+	// deferredLit is the innermost deferred function literal enclosing the use, if any.
+	// Its body runs when the enclosing function returns.
+	deferredLit *ast.FuncLit
 }
 
 func (w *lintUnclosedHTTPBody) checkDecl(decl ast.Decl) {
@@ -97,23 +103,31 @@ func (w *lintUnclosedHTTPBody) checkProducers(decl ast.Decl, obj types.Object, p
 		lhsIdents[p.lhs] = true
 	}
 
+	var uses []httpResponseUse
+	var replacements []*ast.AssignStmt
 	walkWithStack(decl, func(node ast.Node, stack []ast.Node) {
+		if assign, ok := node.(*ast.AssignStmt); ok && w.replacesBodyWithNop(assign, obj) {
+			replacements = append(replacements, assign)
+			return
+		}
+
 		id, ok := node.(*ast.Ident)
 		if !ok || lhsIdents[id] || w.info.Uses[id] != obj {
 			return
 		}
 
-		if !w.isResponseHandled(stack) {
-			return
+		if w.isResponseHandled(stack) {
+			uses = append(uses, httpResponseUse{pos: id.Pos(), lit: innermostFuncLit(stack), deferredLit: innermostDeferredFuncLit(stack)})
 		}
+	})
 
-		use := httpResponseUse{pos: id.Pos(), lit: innermostFuncLit(stack)}
+	for _, use := range uses {
 		for _, p := range prods {
-			if useAppliesTo(use, p, prods) {
+			if useAppliesTo(use, p, prods) && !isBodyReplacedBefore(use, p, replacements) {
 				p.handled = true
 			}
 		}
-	})
+	}
 
 	for _, p := range prods {
 		if !p.handled {
@@ -156,10 +170,166 @@ func useAppliesTo(use httpResponseUse, p *httpResponseProducer, prods []*httpRes
 	return true
 }
 
+// isBodyReplacedBefore tells if the body of the response returned by the producer is replaced by a no-op closer
+// before the use runs, like in
+//
+//	resp.Body = io.NopCloser(bytes.NewReader(b))
+//	defer resp.Body.Close()
+//
+// In that case the use does not close the original body, nor makes it escape.
+// A deferred function literal runs when the function returns, so after any replacement outside of it.
+func isBodyReplacedBefore(use httpResponseUse, p *httpResponseProducer, replacements []*ast.AssignStmt) bool {
+	for _, r := range replacements {
+		if r.Pos() < p.call.End() {
+			continue
+		}
+
+		if r.End() <= use.pos {
+			return true
+		}
+
+		lit := use.deferredLit
+		if lit != nil && !containsNode(lit, r) && !containsNode(lit, p.call) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// replacesBodyWithNop tells if the assignment replaces the body of the response held by the variable
+// with a body that does not need to be closed, like [io.NopCloser].
+func (w *lintUnclosedHTTPBody) replacesBodyWithNop(assign *ast.AssignStmt, obj types.Object) bool {
+	return slices.ContainsFunc(w.nopBodyTargets(assign), func(x ast.Expr) bool {
+		id, ok := x.(*ast.Ident)
+		return ok && w.info.Uses[id] == obj
+	})
+}
+
+// nopBodyTargets returns the expressions X of the assignments of a body that does not need to be closed to X.Body
+// in the given assignment statement.
+func (w *lintUnclosedHTTPBody) nopBodyTargets(assign *ast.AssignStmt) []ast.Expr {
+	if len(assign.Lhs) != len(assign.Rhs) {
+		return nil
+	}
+
+	var targets []ast.Expr
+	for i, lhs := range assign.Lhs {
+		sel, ok := lhs.(*ast.SelectorExpr)
+		if ok && sel.Sel.Name == "Body" && w.isNopBody(assign.Rhs[i]) {
+			targets = append(targets, sel.X)
+		}
+	}
+
+	return targets
+}
+
+// isNopBody tells if the expression is a body that does not need to be closed: a call to [io.NopCloser] or [http.NoBody].
+func (w *lintUnclosedHTTPBody) isNopBody(expr ast.Expr) bool {
+	switch e := ast.Unparen(expr).(type) {
+	case *ast.CallExpr:
+		fn := w.calleeFunc(e)
+		if fn == nil {
+			return false
+		}
+		name := fn.FullName()
+		return name == "io.NopCloser" || name == "io/ioutil.NopCloser"
+	case *ast.SelectorExpr:
+		v, ok := w.info.Uses[e.Sel].(*types.Var)
+		return ok && v.Pkg() != nil && v.Pkg().Path() == "net/http" && v.Name() == "NoBody"
+	}
+
+	return false
+}
+
+// calleeFunc returns the function or method called, or nil if it is not statically known.
+func (w *lintUnclosedHTTPBody) calleeFunc(call *ast.CallExpr) *types.Func {
+	var id *ast.Ident
+	switch fun := ast.Unparen(call.Fun).(type) {
+	case *ast.Ident:
+		id = fun
+	case *ast.SelectorExpr:
+		id = fun.Sel
+	case *ast.IndexExpr: // generic function instantiation
+		id = identOf(fun.X)
+	case *ast.IndexListExpr:
+		id = identOf(fun.X)
+	}
+
+	if id == nil {
+		return nil
+	}
+
+	fn, ok := w.info.Uses[id].(*types.Func)
+	if !ok {
+		return nil
+	}
+
+	return fn.Origin()
+}
+
+func identOf(expr ast.Expr) *ast.Ident {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return e
+	case *ast.SelectorExpr:
+		return e.Sel
+	}
+	return nil
+}
+
+// returnsNopBody tells if the call is to a function of the package that replaces the body of a response
+// with a body that does not need to be closed, like a helper that reads and closes the body, then returns
+// the response with its body replaced by [io.NopCloser].
+// Functions declared in other packages are not analyzed.
+func (w *lintUnclosedHTTPBody) returnsNopBody(call *ast.CallExpr) bool {
+	fn := w.calleeFunc(call)
+	if fn == nil || fn.Pkg() != w.pkg.TypesPkg() {
+		return false
+	}
+
+	if result, ok := w.nopBodyFuncs[fn]; ok {
+		return result
+	}
+
+	result := false
+	if decl := w.funcDecl(fn); decl != nil && decl.Body != nil {
+		ast.Inspect(decl.Body, func(node ast.Node) bool {
+			assign, ok := node.(*ast.AssignStmt)
+			if result || !ok {
+				return !result
+			}
+			result = slices.ContainsFunc(w.nopBodyTargets(assign), func(x ast.Expr) bool {
+				return isHTTPResponse(w.info.TypeOf(x))
+			})
+			return !result
+		})
+	}
+
+	w.nopBodyFuncs[fn] = result
+	return result
+}
+
+// funcDecl returns the declaration of the function in the package, or nil if it is not found.
+func (w *lintUnclosedHTTPBody) funcDecl(fn *types.Func) *ast.FuncDecl {
+	for _, file := range w.pkg.Files() {
+		if file.AST == nil || file.AST.Pos() > fn.Pos() || fn.Pos() >= file.AST.End() {
+			continue
+		}
+		for _, decl := range file.AST.Decls {
+			if fd, ok := decl.(*ast.FuncDecl); ok && w.info.Defs[fd.Name] == fn {
+				return fd
+			}
+		}
+	}
+
+	return nil
+}
+
 // responseIndex returns the position of the *http.Response in the results of the call, or -1 if there is none.
 func (w *lintUnclosedHTTPBody) responseIndex(call *ast.CallExpr) int {
 	fun, ok := w.info.Types[call.Fun]
-	if !ok || fun.IsType() || fun.IsBuiltin() || w.isNoopBodyCall(call) {
+	if !ok || fun.IsType() || fun.IsBuiltin() || w.isNoopBodyCall(call) || w.returnsNopBody(call) {
 		return -1
 	}
 
@@ -419,6 +589,28 @@ func innermostBlock(stack []ast.Node) ast.Node {
 		}
 	}
 	return nil
+}
+
+// innermostDeferredFuncLit returns the innermost deferred function literal of the stack, like in `defer func() { ... }()`.
+func innermostDeferredFuncLit(stack []ast.Node) *ast.FuncLit {
+	for i := len(stack) - 1; i >= 2; i-- {
+		lit, ok := stack[i].(*ast.FuncLit)
+		if !ok {
+			continue
+		}
+		call, ok := stack[i-1].(*ast.CallExpr)
+		if !ok || call.Fun != lit {
+			continue
+		}
+		if _, ok := stack[i-2].(*ast.DeferStmt); ok {
+			return lit
+		}
+	}
+	return nil
+}
+
+func containsNode(outer, inner ast.Node) bool {
+	return outer.Pos() <= inner.Pos() && inner.End() <= outer.End()
 }
 
 func innermostFuncLit(stack []ast.Node) *ast.FuncLit {
