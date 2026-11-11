@@ -80,6 +80,7 @@ List of all available rules.
 - [redundant-build-tag](#redundant-build-tag)
 - [redundant-import-alias](#redundant-import-alias)
 - [redundant-test-main-exit](#redundant-test-main-exit)
+- [redundant-var-decl](#redundant-var-decl)
 - [string-format](#string-format)
 - [string-of-int](#string-of-int)
 - [struct-tag](#struct-tag)
@@ -2164,6 +2165,67 @@ since exiting with another status is the only way to fail the test binary when s
 _Configuration_: N/A
 
 _Note_: This rule is irrelevant for Go 1.14-.
+
+## redundant-var-decl
+
+_Go version_: 1.0.
+
+_Revive version_: Unreleased.
+
+_Description_: This rule warns on `var` declarations without an initial value that are made redundant
+by a later short variable declaration (`:=`) in the same block that redeclares the variable.
+The `var` declaration can be removed and the `:=` declares the variable instead.
+
+A declaration is reported only when removing it is safe:
+
+- the `:=` is in the same block, so it reuses the variable instead of shadowing it;
+- the variable is not used between the declaration and the `:=`, nor on the right side of the `:=`;
+- the type the `:=` would infer is identical to the declared one
+  (e.g. `var err error` followed by `x, err := f()` where `f` returns `*MyError` is not reported);
+- the function does not contain a `goto`.
+
+### Examples (redundant-var-decl)
+
+Before (violation):
+
+```go
+func disassemble(start, end uint64) ([]Inst, error) {
+	var err error
+	insts, err := decode(start, end)
+	if err != nil {
+		return nil, err
+	}
+	return insts, nil
+}
+```
+
+After (fixed):
+
+```go
+func disassemble(start, end uint64) ([]Inst, error) {
+	insts, err := decode(start, end)
+	if err != nil {
+		return nil, err
+	}
+	return insts, nil
+}
+```
+
+_Configuration_:
+
+- `only-types`: (list of strings) check only variables of these types; by default, variables of all types are checked.
+  Write types as in Go source, qualified with the package name (`error`, `[]byte`, `io.Reader`, `*os.File`, `mypkg.MyError`)
+  or with the full package path (`github.com/user/repo/mypkg.MyError`).
+
+Configuration example:
+
+```toml
+[rule.redundant-var-decl]
+arguments = [{ only-types = ["error"] }]
+```
+
+_Note_: revive resolves types of the standard library imports only, so a declaration redeclared by a call
+to a function from any other package (another package of the project or a dependency) is not reported.
 
 ## string-format
 
