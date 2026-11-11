@@ -16,7 +16,9 @@ COPY . .
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -ldflags "-X 'github.com/mgechev/revive/cli.version=${VERSION}' -X 'github.com/mgechev/revive/cli.commit=${REVISION}' -X 'github.com/mgechev/revive/cli.date=${BUILDTIME}' -X 'github.com/mgechev/revive/cli.builtBy=${BUILDER}'"
 
-FROM scratch
+FROM golang:1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb
+
+ENV GOCACHE=/tmp/.cache/go-build GOMODCACHE=/tmp/.cache/go-mod
 
 COPY --from=build /src/revive /revive
 

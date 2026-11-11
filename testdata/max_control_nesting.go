@@ -24,6 +24,13 @@ func mcn() {
 		}
 	}
 
+	for range xs {
+		if true {
+			for range xs { // MATCH /control flow nesting exceeds 2/
+			}
+		}
+	}
+
 	switch {
 	case false:
 		if true {

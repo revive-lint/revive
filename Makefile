@@ -1,10 +1,10 @@
-.PHONY: all install tidy build lint fmt test docker-build docker-run
+.PHONY: all install tidy build lint fmt test docker-build docker-run docker-smoke
 
 GIT_COMMIT ?= $(shell git rev-parse --verify HEAD)
 GIT_VERSION ?= $(shell git describe --tags --always --dirty="-dev")
 DATE ?= $(shell date -u '+%Y-%m-%d %H:%M UTC')
 BUILDER ?= Makefile
-IMAGE ?= revive:dev
+IMAGE ?= ghcr.io/revive-lint/revive:dev
 PLATFORM ?=
 ARGS ?= ./...
 VERSION_FLAGS := -X "github.com/mgechev/revive/cli.version=$(GIT_VERSION)" -X "github.com/mgechev/revive/cli.date=$(DATE)" -X "github.com/mgechev/revive/cli.commit=$(GIT_COMMIT)" -X "github.com/mgechev/revive/cli.builtBy=$(BUILDER)"
@@ -39,5 +39,8 @@ docker-build:
 		$(if $(PLATFORM),--platform '$(PLATFORM)') \
 		--load -t '$(IMAGE)' .
 
+docker-smoke: docker-build
+	@./test/docker/smoke.sh '$(IMAGE)'
+
 docker-run: docker-build
-	@docker run --rm -v '$(CURDIR)':/src -w /src '$(IMAGE)' $(ARGS)
+	@docker run --rm -v '$(CURDIR)':/app -w /app '$(IMAGE)' $(ARGS)
