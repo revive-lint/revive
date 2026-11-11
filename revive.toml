@@ -108,6 +108,7 @@ warning-code = 1
 [rule.time-naming]
 [rule.unchecked-type-assertion]
     disabled = true
+[rule.unclosed-http-body]
 [rule.unconditional-recursion]
 [rule.unexported-naming]
 [rule.unexported-return]
