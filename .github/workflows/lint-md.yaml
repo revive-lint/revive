@@ -8,7 +8,9 @@ on:
       - 'mdsf.json'
       - '.markdownlint-cli2.yaml'
       - '.github/workflows/lint-md.yaml'
+      - 'tools/goimports/**'
       - 'tools/markdown-toc/**'
+      - 'tools/shfmt/**'
   push:
     branches:
       - master
@@ -34,12 +36,12 @@ jobs:
         uses: hougesen/mdsf@34e82620cc7fac838b9d91968ae3a96652d44eff # v0.12.0
 
       - name: Setup goimports
-        working-directory: tools
+        working-directory: tools/goimports
         # https://pkg.go.dev/golang.org/x/tools/cmd/goimports
         run: go install golang.org/x/tools/cmd/goimports
 
       - name: Setup shfmt
-        working-directory: tools
+        working-directory: tools/shfmt
         # https://github.com/mvdan/sh#shfmt
         run: go install mvdan.cc/sh/v3/cmd/shfmt
 
