@@ -8,7 +8,9 @@ on:
       - 'mdsf.json'
       - '.markdownlint-cli2.yaml'
       - '.github/workflows/lint-md.yaml'
+      - 'tools/goimports/**'
       - 'tools/markdown-toc/**'
+      - 'tools/shfmt/**'
   push:
     branches:
       - master
