@@ -1,4 +1,4 @@
-.PHONY: all install tidy build lint fmt test fuzz docker-build docker-run docker-smoke
+.PHONY: all tidy tidy-tools build goreleaser-build lint fmt fuzz test docker-build docker-run docker-smoke
 
 GIT_COMMIT ?= $(shell git rev-parse --verify HEAD)
 GIT_VERSION ?= $(shell git describe --tags --always --dirty="-dev")
@@ -12,14 +12,17 @@ VERSION_FLAGS := -X "github.com/mgechev/revive/cli.version=$(GIT_VERSION)" -X "g
 
 all: test lint build
 
-install:
-	@go mod vendor
-
 tidy:
 	@go mod tidy -diff
 
+tidy-tools:
+	@set -e; for dir in $(dir $(wildcard tools/*/go.mod)); do go -C $$dir mod tidy -diff; done
+
 build: tidy
 	@go build -ldflags='$(VERSION_FLAGS)'
+
+goreleaser-build:
+	@go tool -modfile=tools/goreleaser/go.mod goreleaser build --snapshot --clean
 
 lint:
 	revive --config revive.toml ./...

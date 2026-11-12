@@ -201,8 +201,8 @@ and [mdsf](https://github.com/hougesen/mdsf) to check Markdown files.
 1. Install [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2#install).
 2. Install [markdown-toc](https://github.com/jonschlinkert/markdown-toc#quick-start).
 3. Install [mdsf](https://mdsf.mhouge.dk/#installation) and formatters:
-    - [goimports](https://pkg.go.dev/golang.org/x/tools/cmd/goimports) for `go`: `go install golang.org/x/tools/cmd/goimports@latest`
-    - [shfmt](https://github.com/mvdan/sh#shfmt) for `sh, shell, bash`: `go install mvdan.cc/sh/v3/cmd/shfmt@latest`
+    - [goimports](https://pkg.go.dev/golang.org/x/tools/cmd/goimports) for `go`: `go -C tools/goimports install golang.org/x/tools/cmd/goimports`
+    - [shfmt](https://github.com/mvdan/sh#shfmt) for `sh, shell, bash`: `go -C tools/shfmt install mvdan.cc/sh/v3/cmd/shfmt`
     - [taplo](https://taplo.tamasfe.dev/cli/installation/binary.html) for `toml`
 4. Run the following command to check formatting:
 
