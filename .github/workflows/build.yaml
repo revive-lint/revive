@@ -9,6 +9,7 @@ on:
       - 'go.sum'
       - 'tools/**'
       - 'Makefile'
+      - '.goreleaser.yml'
       - '.github/workflows/build.yaml'
   push:
     branches:
@@ -28,3 +29,6 @@ jobs:
 
       - name: build
         run: make build
+
+      - name: goreleaser build
+        run: go tool -modfile=tools/goreleaser/go.mod goreleaser build --snapshot --clean
