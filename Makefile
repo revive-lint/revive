@@ -25,10 +25,10 @@ goreleaser-build:
 
 lint:
 	revive --config revive.toml ./...
-	go tool -modfile=tools/golangci-lint/go.mod golangci-lint run
+	golangci-lint run
 
 fmt:
-	go tool -modfile=tools/golangci-lint/go.mod golangci-lint fmt
+	golangci-lint fmt
 
 test:
 	@go test -v -race ./...
