@@ -128,10 +128,9 @@ func (m *moduleExports) exportFile(path string) (string, error) {
 	if file == "" {
 		err = errors.Join(batchErr, err)
 		if err == nil {
-			err = fmt.Errorf("no export data for %q: package could not be loaded", path)
-		} else {
-			err = fmt.Errorf("no export data for %q: %w", path, err)
+			err = errors.New("package could not be loaded")
 		}
+		err = fmt.Errorf("no export data for %q: %w", path, err)
 	}
 	m.exports[path] = exportResult{file: file, err: err}
 	return file, err
