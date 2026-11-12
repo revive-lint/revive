@@ -1,4 +1,4 @@
-.PHONY: all tidy tidy-tools build lint fmt test docker-build docker-run docker-smoke
+.PHONY: all tidy tidy-tools build goreleaser-build lint fmt test docker-build docker-run docker-smoke
 
 GIT_COMMIT ?= $(shell git rev-parse --verify HEAD)
 GIT_VERSION ?= $(shell git describe --tags --always --dirty="-dev")
@@ -19,6 +19,9 @@ tidy-tools:
 
 build: tidy
 	@go build -ldflags='$(VERSION_FLAGS)'
+
+goreleaser-build:
+	@go tool -modfile=tools/goreleaser/go.mod goreleaser build --snapshot --clean
 
 lint:
 	revive --config revive.toml ./...

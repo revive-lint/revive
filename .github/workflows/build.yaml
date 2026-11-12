@@ -31,4 +31,4 @@ jobs:
         run: make build
 
       - name: Check if goreleaser can build
-        run: go tool -modfile=tools/goreleaser/go.mod goreleaser build --snapshot --clean
+        run: make goreleaser-build
