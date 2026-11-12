@@ -3,77 +3,82 @@ package pkg
 // Reported: the variable exists only to have its address taken.
 
 func assignToField(size *float32, values []float64, i int) {
-	sizeVal := float64(*size) // MATCH /replace the temporary variable sizeVal with new(float64(*size))/
-	snapshot.Size = &sizeVal
+	sizeVal := float64(*size)
+	snapshot.Size = &sizeVal // MATCH /use new(float64(*size)) instead of the temporary variable sizeVal/
 
-	nameVal := "a name" // MATCH /replace the temporary variable nameVal with new("a name")/
-	snapshot.Name = &nameVal
+	nameVal := "a name"
+	snapshot.Name = &nameVal // MATCH /use new("a name") instead of the temporary variable nameVal/
 
-	timeout := config.Timeout // MATCH /replace the temporary variable timeout with new(config.Timeout)/
-	snapshot.Size = &timeout
+	timeout := config.Timeout
+	snapshot.Size = &timeout // MATCH /use new(config.Timeout) instead of the temporary variable timeout/
 
-	item := values[i] // MATCH /replace the temporary variable item with new(values[i])/
-	snapshot.Size = &item
+	item := values[i]
+	snapshot.Size = &item // MATCH /use new(values[i]) instead of the temporary variable item/
 }
 
 func definePointer() *int {
-	count := 42 // MATCH /replace the temporary variable count with new(42)/
-	countPtr := &count
+	count := 42
+	countPtr := &count // MATCH /use new(42) instead of the temporary variable count/
 
 	return countPtr
 }
 
 func returnAddress(b []byte) *string {
-	s := string(b) // MATCH /replace the temporary variable s with new(string(b))/
+	s := string(b)
 
-	return &s
+	return &s // MATCH /use new(string(b)) instead of the temporary variable s/
 }
 
 func passAddress(flag bool) {
-	enabled := !flag // MATCH /replace the temporary variable enabled with new(!flag)/
-	consume(&enabled)
+	enabled := !flag
+	consume(&enabled) // MATCH /use new(!flag) instead of the temporary variable enabled/
 }
 
 func fillCompositeLiteral(b []byte) *snapshotType {
-	name := string(b) // MATCH /replace the temporary variable name with new(string(b))/
+	name := string(b)
 
-	return &snapshotType{Name: &name}
+	return &snapshotType{Name: &name} // MATCH /use new(string(b)) instead of the temporary variable name/
 }
 
 func inClauses(ch chan int, i int) {
 	switch i {
 	case 0:
-		inCase := int64(i) // MATCH /replace the temporary variable inCase with new(int64(i))/
-		int64s = append(int64s, &inCase)
+		inCase := int64(i)
+		int64s = append(int64s, &inCase) // MATCH /use new(int64(i)) instead of the temporary variable inCase/
 	}
 
 	select {
 	case v := <-ch:
-		inComm := int64(v) // MATCH /replace the temporary variable inComm with new(int64(v))/
-		int64s = append(int64s, &inComm)
+		inComm := int64(v)
+		int64s = append(int64s, &inComm) // MATCH /use new(int64(v)) instead of the temporary variable inComm/
 	}
 }
 
 func sameNameAsField(i int) {
-	size := float64(i) // MATCH /replace the temporary variable size with new(float64(i))/
-	snapshot.Size = &size
+	size := float64(i)
+	snapshot.Size = &size // MATCH /use new(float64(i)) instead of the temporary variable size/
 	other.size = 2
 	consumeSnapshot(&snapshotType{size: 3})
 }
 
 func chainedPointers() **int {
-	count := 42 // MATCH /replace the temporary variable count with new(42)/
-	countPtr := &count
+	count := 42
+	countPtr := &count // MATCH /use new(42) instead of the temporary variable count/
 
 	return &countPtr
 }
 
 func sendAndDefer(ch chan *int64, i int) {
-	sent := int64(i) // MATCH /replace the temporary variable sent with new(int64(i))/
-	ch <- &sent
+	sent := int64(i)
+	ch <- &sent // MATCH /use new(int64(i)) instead of the temporary variable sent/
 
-	deferred := int64(i) // MATCH /replace the temporary variable deferred with new(int64(i))/
-	defer consume(&deferred)
+	deferred := int64(i)
+	defer consume(&deferred) // MATCH /use new(int64(i)) instead of the temporary variable deferred/
+}
+
+func besideSideEffectFreeCalls(i int) *snapshotType {
+	confidence := 0.9
+	return &snapshotType{Confidence: &confidence, Size: new(0.5), Count: new(int64(i))} // MATCH /use new(0.9) instead of the temporary variable confidence/
 }
 
 // Not reported: the variable has another use, or is not declared right before its address is taken.

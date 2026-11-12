@@ -87,9 +87,9 @@ func (w lintUseNew) checkPointerToTemporaryVar(stmts []ast.Stmt) {
 
 		w.onFailure(lint.Failure{
 			Category:   lint.FailureCategoryStyle,
-			Node:       stmts[i],
+			Node:       stmts[i+1],
 			Confidence: 0.8,
-			Failure:    fmt.Sprintf("replace the temporary variable %s with new(%s)", target.Name, valueStr),
+			Failure:    fmt.Sprintf("use new(%s) instead of the temporary variable %s", valueStr, target.Name),
 		})
 
 		i++ // the statement taking the address is rewritten by the failure above, reporting it in turn would contradict it
@@ -174,7 +174,7 @@ func keepsEvaluationOrder(stmt ast.Stmt, name string) bool {
 	effectful := astutils.PickNodes(stmt, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.CallExpr:
-			return true
+			return !isSideEffectFreeCall(n)
 		case *ast.UnaryExpr:
 			return n.Op == token.ARROW
 		default:
@@ -183,6 +183,13 @@ func keepsEvaluationOrder(stmt ast.Stmt, name string) bool {
 	})
 
 	return !slices.ContainsFunc(effectful, func(n ast.Node) bool { return countUses(n, name) == 0 })
+}
+
+// isSideEffectFreeCall returns true if the call itself has no side effects, e.g., new(0.5) or float64(i).
+// Calls among its arguments are not considered here.
+func isSideEffectFreeCall(call *ast.CallExpr) bool {
+	fun, ok := call.Fun.(*ast.Ident)
+	return ok && (fun.Name == "new" || builtInTypes[fun.Name])
 }
 
 // isStraightLine returns true if the statement runs exactly once, where it is written.
