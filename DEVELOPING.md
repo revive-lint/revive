@@ -29,7 +29,7 @@ Run the whole suite with:
 make test
 ```
 
-The tests come in two kinds:
+The tests come in three kinds:
 
 - **Rule tests** in [`test/`](./test), one `_test.go` per rule, driven by the Go source fixtures in [`testdata/`](./testdata).
   They call the linter as a library and compare the reported failures with the `// MATCH` comments in the fixtures.
@@ -38,6 +38,13 @@ The tests come in two kinds:
   They execute revive as a separate process and assert on its exit code and on its output on stdout and stderr,
   which covers the behavior a library call cannot:
   flag parsing, `-set_exit_status`, the `warning-code` and `error-code` config settings, `-exclude`, and config file errors.
+- **Fuzz tests** check that revive never panics on arbitrary input: `FuzzGetConfig` in [`config/`](./config) loads arbitrary
+  configuration files, and `FuzzLint` in [`test/`](./test) runs all rules over arbitrary Go source.
+  `make test` runs them on their seed corpus only. To fuzz, run `make fuzz`, which fuzzes each target in turn for `FUZZTIME` (default `1m`),
+  for example `make fuzz FUZZTIME=10m`. Go fuzzes one target at a time, so to fuzz a single one run
+  `go test -run='^$' -fuzz=FuzzLint -fuzztime=5m ./test/`.
+  A failing input is saved under `testdata/fuzz/<FuzzName>/` in the package directory;
+  commit it together with the fix so it stays a regression test.
 
 The end-to-end tests do not build a binary. The test binary re-executes itself with `REVIVE_E2E_RUN_REVIVE=1` set,
 and its `TestMain` sees that variable and calls `RunRevive()` instead of running any test, so coverage still counts the CLI code.
