@@ -75,7 +75,7 @@ func (w lintUseNew) checkPointerToTemporaryVar(stmts []ast.Stmt) {
 			continue
 		}
 
-		if !keepsEvaluationOrder(stmts[i+1], target.Name) {
+		if !isLiteralValue(value) && !keepsEvaluationOrder(stmts[i+1], target.Name) {
 			continue
 		}
 
@@ -120,6 +120,23 @@ func isSimpleValue(value ast.Expr) bool {
 		convertedTo, ok := value.Fun.(*ast.Ident)
 
 		return ok && builtInTypes[convertedTo.Name] && isSimpleValue(value.Args[0])
+	default:
+		return false
+	}
+}
+
+// isLiteralValue returns true if the value is built from literals only, e.g., "a name", -1 or float64(42).
+// Such a value is the same wherever it is evaluated.
+func isLiteralValue(value ast.Expr) bool {
+	switch value := value.(type) {
+	case *ast.BasicLit:
+		return true
+	case *ast.ParenExpr:
+		return isLiteralValue(value.X)
+	case *ast.UnaryExpr:
+		return value.Op != token.ARROW && isLiteralValue(value.X)
+	case *ast.CallExpr:
+		return len(value.Args) == 1 && isSideEffectFreeCall(value) && isLiteralValue(value.Args[0])
 	default:
 		return false
 	}

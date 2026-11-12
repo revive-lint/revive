@@ -81,6 +81,14 @@ func besideSideEffectFreeCalls(i int) *snapshotType {
 	return &snapshotType{Confidence: &confidence, Size: new(0.5), Count: new(int64(i))} // MATCH /use new(0.9) instead of the temporary variable confidence/
 }
 
+func literalBesideCalls(i int) *snapshotType {
+	name := "a name"
+	consumeTwo(lookupSize("a name"), &snapshotType{Name: &name}) // MATCH /use new("a name") instead of the temporary variable name/
+
+	negative := float64(-1)
+	return newBuilder("a name").withSize(&negative) // MATCH /use new(float64(-1)) instead of the temporary variable negative/
+}
+
 // Not reported: the variable has another use, or is not declared right before its address is taken.
 
 func otherUses(flag bool, i int, sizes [3]float64) {
