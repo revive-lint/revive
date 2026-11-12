@@ -3,77 +3,111 @@ package pkg
 // Reported: the variable exists only to have its address taken.
 
 func assignToField(size *float32, values []float64, i int) {
-	sizeVal := float64(*size) // MATCH /replace the temporary variable sizeVal with new(float64(*size))/
-	snapshot.Size = &sizeVal
+	sizeVal := float64(*size)
+	snapshot.Size = &sizeVal // MATCH /use new(float64(*size)) instead of the temporary variable sizeVal/
 
-	nameVal := "a name" // MATCH /replace the temporary variable nameVal with new("a name")/
-	snapshot.Name = &nameVal
+	nameVal := "a name"
+	snapshot.Name = &nameVal // MATCH /use new("a name") instead of the temporary variable nameVal/
 
-	timeout := config.Timeout // MATCH /replace the temporary variable timeout with new(config.Timeout)/
-	snapshot.Size = &timeout
+	timeout := config.Timeout
+	snapshot.Size = &timeout // MATCH /use new(config.Timeout) instead of the temporary variable timeout/
 
-	item := values[i] // MATCH /replace the temporary variable item with new(values[i])/
-	snapshot.Size = &item
+	item := values[i]
+	snapshot.Size = &item // MATCH /use new(values[i]) instead of the temporary variable item/
 }
 
 func definePointer() *int {
-	count := 42 // MATCH /replace the temporary variable count with new(42)/
-	countPtr := &count
+	count := 42
+	countPtr := &count // MATCH /use new(42) instead of the temporary variable count/
 
 	return countPtr
 }
 
 func returnAddress(b []byte) *string {
-	s := string(b) // MATCH /replace the temporary variable s with new(string(b))/
+	s := string(b)
 
-	return &s
+	return &s // MATCH /use new(string(b)) instead of the temporary variable s/
 }
 
 func passAddress(flag bool) {
-	enabled := !flag // MATCH /replace the temporary variable enabled with new(!flag)/
-	consume(&enabled)
+	enabled := !flag
+	consume(&enabled) // MATCH /use new(!flag) instead of the temporary variable enabled/
 }
 
 func fillCompositeLiteral(b []byte) *snapshotType {
-	name := string(b) // MATCH /replace the temporary variable name with new(string(b))/
+	name := string(b)
 
-	return &snapshotType{Name: &name}
+	return &snapshotType{Name: &name} // MATCH /use new(string(b)) instead of the temporary variable name/
 }
 
 func inClauses(ch chan int, i int) {
 	switch i {
 	case 0:
-		inCase := int64(i) // MATCH /replace the temporary variable inCase with new(int64(i))/
-		int64s = append(int64s, &inCase)
+		inCase := int64(i)
+		int64s = append(int64s, &inCase) // MATCH /use new(int64(i)) instead of the temporary variable inCase/
 	}
 
 	select {
 	case v := <-ch:
-		inComm := int64(v) // MATCH /replace the temporary variable inComm with new(int64(v))/
-		int64s = append(int64s, &inComm)
+		inComm := int64(v)
+		int64s = append(int64s, &inComm) // MATCH /use new(int64(v)) instead of the temporary variable inComm/
 	}
 }
 
 func sameNameAsField(i int) {
-	size := float64(i) // MATCH /replace the temporary variable size with new(float64(i))/
-	snapshot.Size = &size
+	size := float64(i)
+	snapshot.Size = &size // MATCH /use new(float64(i)) instead of the temporary variable size/
 	other.size = 2
 	consumeSnapshot(&snapshotType{size: 3})
 }
 
 func chainedPointers() **int {
-	count := 42 // MATCH /replace the temporary variable count with new(42)/
-	countPtr := &count
+	count := 42
+	countPtr := &count // MATCH /use new(42) instead of the temporary variable count/
 
 	return &countPtr
 }
 
 func sendAndDefer(ch chan *int64, i int) {
-	sent := int64(i) // MATCH /replace the temporary variable sent with new(int64(i))/
-	ch <- &sent
+	sent := int64(i)
+	ch <- &sent // MATCH /use new(int64(i)) instead of the temporary variable sent/
 
-	deferred := int64(i) // MATCH /replace the temporary variable deferred with new(int64(i))/
-	defer consume(&deferred)
+	deferred := int64(i)
+	defer consume(&deferred) // MATCH /use new(int64(i)) instead of the temporary variable deferred/
+}
+
+func besideSideEffectFreeCalls(values []float64, i int) *snapshotType {
+	beforeLen := float64(i)
+	consumeTwo(len(values), &beforeLen) // MATCH /use new(float64(i)) instead of the temporary variable beforeLen/
+
+	beforeMin := values[i]
+	consumeTwo(min(cap(values), 3), &beforeMin) // MATCH /use new(values[i]) instead of the temporary variable beforeMin/
+
+	confidence := float64(i)
+	return &snapshotType{Confidence: &confidence, Size: new(0.5), Count: new(int64(i))} // MATCH /use new(float64(i)) instead of the temporary variable confidence/
+}
+
+func sideEffectFreeValues(values []float64) {
+	size := len(values)
+	consume(&size) // MATCH /use new(len(values)) instead of the temporary variable size/
+
+	smallest := min(values[0], values[1])
+	consume(&smallest) // MATCH /use new(min(values[0], values[1])) instead of the temporary variable smallest/
+}
+
+func literalBesideCalls(i int) *snapshotType {
+	name := "a name"
+	consumeTwo(lookupSize("a name"), &snapshotType{Name: &name}) // MATCH /use new("a name") instead of the temporary variable name/
+
+	enabled := true
+	consumeTwo(lookupSize("a name"), &enabled) // MATCH /use new(true) instead of the temporary variable enabled/
+
+	const limit = 10
+	withLimit := int64(limit)
+	consumeTwo(lookupSize("a name"), &withLimit) // MATCH /use new(int64(limit)) instead of the temporary variable withLimit/
+
+	negative := float64(-1)
+	return newBuilder("a name").withSize(&negative) // MATCH /use new(float64(-1)) instead of the temporary variable negative/
 }
 
 // Not reported: the variable has another use, or is not declared right before its address is taken.
@@ -155,6 +189,20 @@ func besideAnotherOperation(ch chan int64, values []float64, i int) {
 
 	beforeCallee := float64(i)
 	newBuilder("a name").consumeSize(&beforeCallee)
+
+	beforeVariable := i
+	consumeTwo(lookupSize("a name"), &beforeVariable)
+}
+
+func besideShadowedBuiltins(values []float64, i int, len func([]float64) int, int64 func(int) int64, true bool) {
+	beforeShadowedLen := float64(i)
+	consumeTwo(len(values), &beforeShadowedLen)
+
+	beforeShadowedConversion := float64(i)
+	consumeTwo(int64(i), &beforeShadowedConversion)
+
+	shadowedTrue := true
+	consumeTwo(lookupSize("a name"), &shadowedTrue)
 }
 
 // Not reported: inlining the value would make the code harder to read.
@@ -165,6 +213,9 @@ func complexValues(name string) {
 
 	callResult := lookupSize(name)
 	snapshot.Size = &callResult
+
+	allocated := new(0.5)
+	consumePointer(&allocated)
 
 	dereferenced := *newBuilder(name).Obj()
 	consumeSnapshot(&dereferenced)

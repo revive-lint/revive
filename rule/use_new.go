@@ -75,7 +75,7 @@ func (w lintUseNew) checkPointerToTemporaryVar(stmts []ast.Stmt) {
 			continue
 		}
 
-		if !keepsEvaluationOrder(stmts[i+1], target.Name) {
+		if !isConstantValue(value) && !keepsEvaluationOrder(stmts[i+1], target.Name) {
 			continue
 		}
 
@@ -87,16 +87,16 @@ func (w lintUseNew) checkPointerToTemporaryVar(stmts []ast.Stmt) {
 
 		w.onFailure(lint.Failure{
 			Category:   lint.FailureCategoryStyle,
-			Node:       stmts[i],
+			Node:       stmts[i+1],
 			Confidence: 0.8,
-			Failure:    fmt.Sprintf("replace the temporary variable %s with new(%s)", target.Name, valueStr),
+			Failure:    fmt.Sprintf("use new(%s) instead of the temporary variable %s", valueStr, target.Name),
 		})
 
 		i++ // the statement taking the address is rewritten by the failure above, reporting it in turn would contradict it
 	}
 }
 
-// isSimpleValue returns true if the value reads well inside a call to new, e.g., 42, *size, st.countor float64(*size).
+// isSimpleValue returns true if the value reads well inside a call to new, e.g., 42, *size, float64(*size) or len(values).
 func isSimpleValue(value ast.Expr) bool {
 	switch value := value.(type) {
 	case *ast.BasicLit, *ast.Ident:
@@ -112,17 +112,47 @@ func isSimpleValue(value ast.Expr) bool {
 	case *ast.IndexExpr:
 		return isSimpleValue(value.X) && isSimpleValue(value.Index)
 	case *ast.CallExpr:
-		// a conversion to a predeclared type, e.g., float64(*size).
-		if len(value.Args) != 1 || value.Ellipsis.IsValid() {
+		if !isSideEffectFreeCall(value) || astutils.IsIdent(value.Fun, "new") {
 			return false
 		}
 
-		convertedTo, ok := value.Fun.(*ast.Ident)
-
-		return ok && builtInTypes[convertedTo.Name] && isSimpleValue(value.Args[0])
+		return !slices.ContainsFunc(value.Args, func(arg ast.Expr) bool { return !isSimpleValue(arg) })
 	default:
 		return false
 	}
+}
+
+// isConstantValue returns true if the simple value is built from constants only, e.g., "a name", -1, float64(42) or true.
+// Such a value is the same wherever it is evaluated.
+func isConstantValue(value ast.Expr) bool {
+	constant := true
+	ast.Inspect(value, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.CallExpr:
+			if slices.ContainsFunc(n.Args, func(arg ast.Expr) bool { return !isConstantValue(arg) }) {
+				constant = false
+			}
+
+			return false // the called function is not a value
+		case *ast.Ident:
+			if !isConstant(n) {
+				constant = false
+			}
+		}
+
+		return constant
+	})
+
+	return constant
+}
+
+// isConstant returns true if the identifier names a constant, either predeclared like true or declared in the file.
+func isConstant(ident *ast.Ident) bool {
+	if ident.Obj == nil {
+		return builtInConstAndVars[ident.Name]
+	}
+
+	return ident.Obj.Kind == ast.Con
 }
 
 // definedVar returns the variable and the value of a v := expr statement.
@@ -174,7 +204,7 @@ func keepsEvaluationOrder(stmt ast.Stmt, name string) bool {
 	effectful := astutils.PickNodes(stmt, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.CallExpr:
-			return true
+			return !isSideEffectFreeCall(n)
 		case *ast.UnaryExpr:
 			return n.Op == token.ARROW
 		default:
@@ -183,6 +213,29 @@ func keepsEvaluationOrder(stmt ast.Stmt, name string) bool {
 	})
 
 	return !slices.ContainsFunc(effectful, func(n ast.Node) bool { return countUses(n, name) == 0 })
+}
+
+// sideEffectFreeBuiltins are the predeclared functions whose calls have no side effects.
+var sideEffectFreeBuiltins = map[string]bool{
+	"cap":     true,
+	"complex": true,
+	"imag":    true,
+	"len":     true,
+	"max":     true,
+	"min":     true,
+	"new":     true,
+	"real":    true,
+}
+
+// isSideEffectFreeCall returns true if the call itself has no side effects, e.g., new(0.5), float64(i) or len(values).
+// Calls among its arguments are not considered here.
+func isSideEffectFreeCall(call *ast.CallExpr) bool {
+	fun, ok := call.Fun.(*ast.Ident)
+	if !ok || fun.Obj != nil { // a function declared in the file, possibly shadowing a predeclared one
+		return false
+	}
+
+	return sideEffectFreeBuiltins[fun.Name] || builtInTypes[fun.Name]
 }
 
 // isStraightLine returns true if the statement runs exactly once, where it is written.
