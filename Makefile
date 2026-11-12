@@ -22,10 +22,10 @@ build: tidy
 
 lint:
 	revive --config revive.toml ./...
-	golangci-lint run
+	go tool -modfile=tools/go.mod golangci-lint run
 
 fmt:
-	golangci-lint fmt
+	go tool -modfile=tools/go.mod golangci-lint fmt
 
 test:
 	@go test -v -race ./...
