@@ -42,16 +42,16 @@ func (ps *packages) methodNames(lp *lint.Package) pkgMethods {
 	return pkgm
 }
 
-var allPkgs = packages{pkgs: make([]pkgMethods, 1)}
-
 // ConfusingNamingRule lints method names that differ only by capitalization.
-type ConfusingNamingRule struct{}
+type ConfusingNamingRule struct {
+	pkgs packages
+}
 
 // Apply applies the rule to given file.
-func (*ConfusingNamingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (r *ConfusingNamingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 	fileAst := file.AST
-	pkgm := allPkgs.methodNames(file.Pkg)
+	pkgm := r.pkgs.methodNames(file.Pkg)
 	walker := lintConfusingNames{
 		fileName: file.Name,
 		pkgm:     pkgm,
