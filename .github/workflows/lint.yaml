@@ -29,9 +29,7 @@ jobs:
         with:
           go-version: stable
       - name: Check tools/go.mod
-        working-directory: tools
-        run: |
-          go mod tidy -diff
+        run: make tidy-tools
 
   lint-go:
     name: Lint Go
