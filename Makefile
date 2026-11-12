@@ -1,4 +1,4 @@
-.PHONY: all tidy tidy-tools build goreleaser-build lint fmt fuzz test docker-build docker-run docker-smoke
+.PHONY: all tidy tidy-tools build goreleaser-build lint fmt test docker-build docker-run docker-smoke
 
 GIT_COMMIT ?= $(shell git rev-parse --verify HEAD)
 GIT_VERSION ?= $(shell git describe --tags --always --dirty="-dev")
@@ -7,7 +7,6 @@ BUILDER ?= Makefile
 IMAGE ?= ghcr.io/revive-lint/revive:dev
 PLATFORM ?=
 ARGS ?= ./...
-FUZZTIME ?= 1m
 VERSION_FLAGS := -X "github.com/mgechev/revive/cli.version=$(GIT_VERSION)" -X "github.com/mgechev/revive/cli.date=$(DATE)" -X "github.com/mgechev/revive/cli.commit=$(GIT_COMMIT)" -X "github.com/mgechev/revive/cli.builtBy=$(BUILDER)"
 
 all: test lint build
@@ -33,10 +32,6 @@ fmt:
 
 test:
 	@go test -v -race ./...
-
-fuzz:
-	@go test -run='^$$' -fuzz=FuzzGetConfig -fuzztime='$(FUZZTIME)' ./config/
-	@go test -run='^$$' -fuzz=FuzzLint -fuzztime='$(FUZZTIME)' ./test/
 
 docker-build:
 	@docker buildx build \

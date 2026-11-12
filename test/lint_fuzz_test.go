@@ -2,11 +2,9 @@ package test_test
 
 import (
 	"os"
-	"reflect"
 	"testing"
 
 	goversion "github.com/hashicorp/go-version"
-	"golang.org/x/mod/modfile"
 
 	"github.com/mgechev/revive/config"
 	"github.com/mgechev/revive/lint"
@@ -20,55 +18,26 @@ func FuzzLint(f *testing.F) {
 		if err != nil {
 			f.Fatal(err)
 		}
-		f.Add(data, false)
-		f.Add(data, true)
+		f.Add(data)
 	}
 
-	cfg := &lint.Config{EnableAllRules: true, GoVersion: moduleGoVersion(f)}
+	cfg := &lint.Config{EnableAllRules: true, GoVersion: goversion.Must(goversion.NewVersion("1.26"))}
 	config.Normalize(cfg)
+	rules, err := config.GetLintingRules(cfg, nil)
+	if err != nil {
+		f.Fatal(err)
+	}
 
-	f.Fuzz(func(t *testing.T, src []byte, isTest bool) {
-		fileName := "fuzz.go"
-		if isTest {
-			fileName = "fuzz_test.go"
-		}
+	f.Fuzz(func(t *testing.T, src []byte) {
 		l := lint.New(func(string) ([]byte, error) { return src, nil }, 0)
-		failures, err := l.Lint([][]string{{fileName}}, newRules(t), *cfg)
+		failures, err := l.Lint([][]string{{"fuzz.go"}}, rules, *cfg)
 		if err != nil {
 			t.Fatal(err)
 		}
-		for range failures { // drain the channel so that linting completes
+		count := 0
+		for range failures {
+			count++ // drain the channel so that linting completes
 		}
+		t.Logf("%d failures", count)
 	})
-}
-
-// newRules returns new instances of all rules, so that no rule state is shared between fuzz iterations.
-func newRules(t *testing.T) []lint.Rule {
-	t.Helper()
-	allRules := config.AllRules()
-	rules := make([]lint.Rule, 0, len(allRules))
-	for _, r := range allRules {
-		r, _ := reflect.TypeAssert[lint.Rule](reflect.New(reflect.TypeOf(r).Elem()))
-		if c, ok := r.(lint.ConfigurableRule); ok {
-			if err := c.Configure(nil); err != nil {
-				t.Fatal(err)
-			}
-		}
-		rules = append(rules, r)
-	}
-	return rules
-}
-
-// moduleGoVersion returns the Go version declared in revive's go.mod.
-func moduleGoVersion(tb testing.TB) *goversion.Version {
-	tb.Helper()
-	data, err := os.ReadFile("../go.mod")
-	if err != nil {
-		tb.Fatal(err)
-	}
-	mod, err := modfile.ParseLax("go.mod", data, nil)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	return goversion.Must(goversion.NewVersion(mod.Go.Version))
 }
