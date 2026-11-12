@@ -1,4 +1,4 @@
-.PHONY: all install tidy tidy-tools build lint fmt test docker-build docker-run docker-smoke
+.PHONY: all tidy tidy-tools build lint fmt test docker-build docker-run docker-smoke
 
 GIT_COMMIT ?= $(shell git rev-parse --verify HEAD)
 GIT_VERSION ?= $(shell git describe --tags --always --dirty="-dev")
@@ -10,9 +10,6 @@ ARGS ?= ./...
 VERSION_FLAGS := -X "github.com/mgechev/revive/cli.version=$(GIT_VERSION)" -X "github.com/mgechev/revive/cli.date=$(DATE)" -X "github.com/mgechev/revive/cli.commit=$(GIT_COMMIT)" -X "github.com/mgechev/revive/cli.builtBy=$(BUILDER)"
 
 all: test lint build
-
-install:
-	@go install -ldflags='$(VERSION_FLAGS)'
 
 tidy:
 	@go mod tidy -diff
