@@ -56,7 +56,7 @@ jobs:
 
       - id: golangci-lint-version
         run: |
-          echo "GOLANGCI_LINT_VERSION=$(go mod edit -json tools/golangci-lint/go.mod | jq -r '.Require[] | select(.Path == "github.com/golangci/golangci-lint/v2") | .Version')" >> "$GITHUB_OUTPUT"
+          echo "GOLANGCI_LINT_VERSION=$(go -C tools/golangci-lint list -m -f '{{.Version}}' github.com/golangci/golangci-lint/v2)" >> "$GITHUB_OUTPUT"
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0

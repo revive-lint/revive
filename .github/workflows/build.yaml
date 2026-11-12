@@ -52,7 +52,7 @@ jobs:
         id: goreleaser-version
         run: |
           set -euo pipefail
-          version=$(go mod edit -json tools/goreleaser/go.mod | jq -r '.Require[] | select(.Path == "github.com/goreleaser/goreleaser/v2") | .Version')
+          version=$(go -C tools/goreleaser list -m -f '{{.Version}}' github.com/goreleaser/goreleaser/v2)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Run GoReleaser
