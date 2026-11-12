@@ -16,13 +16,13 @@
     },
     {
       "matchManagers": ["gomod"],
-      "matchFileNames": ["go.mod", "tools/go.mod"],
+      "matchFileNames": ["go.mod", "tools/*/go.mod"],
       "matchDepTypes": ["indirect"],
       "enabled": false
     },
     {
       "matchManagers": ["gomod"],
-      "matchFileNames": ["tools/go.mod"],
+      "matchFileNames": ["tools/*/go.mod"],
       "matchDepTypes": ["direct"],
       "groupName": "tools gomod",
       "extends": ["schedule:monthly"],

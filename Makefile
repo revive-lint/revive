@@ -15,17 +15,17 @@ tidy:
 	@go mod tidy -diff
 
 tidy-tools:
-	@go -C tools mod tidy -diff
+	@set -e; for dir in $(dir $(wildcard tools/*/go.mod)); do go -C $$dir mod tidy -diff; done
 
 build: tidy
 	@go build -ldflags='$(VERSION_FLAGS)'
 
 lint:
 	revive --config revive.toml ./...
-	go tool -modfile=tools/go.mod golangci-lint run
+	go tool -modfile=tools/golangci-lint/go.mod golangci-lint run
 
 fmt:
-	go tool -modfile=tools/go.mod golangci-lint fmt
+	go tool -modfile=tools/golangci-lint/go.mod golangci-lint fmt
 
 test:
 	@go test -v -race ./...
