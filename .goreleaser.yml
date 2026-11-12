@@ -30,3 +30,7 @@ checksum:
 snapshot:
   version_template: "{{ .Tag }}-next"
 project_name: revive
+release:
+  # Published by the release workflow after the provenance is uploaded.
+  draft: true
+  replace_existing_draft: true

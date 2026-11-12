@@ -40,7 +40,7 @@ jobs:
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
         with:
           subject-checksums: ./dist/checksums.txt
-      - name: Upload provenance to release
+      - name: Upload provenance and publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUNDLE: ${{ steps.attest.outputs.bundle-path }}
@@ -48,6 +48,7 @@ jobs:
         run: |
           cp "$BUNDLE" revive.intoto.jsonl
           gh release upload "$TAG" revive.intoto.jsonl --clobber
+          gh release edit "$TAG" --draft=false
 
   buildx:
     runs-on: ubuntu-latest
