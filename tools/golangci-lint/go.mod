@@ -4,7 +4,7 @@ go 1.26.0
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
-require github.com/golangci/golangci-lint/v2 v2.14.0
+require github.com/golangci/golangci-lint/v2 v2.14.0 // indirect
 
 require (
 	4d63.com/gocheckcompilerdirectives v1.4.0 // indirect

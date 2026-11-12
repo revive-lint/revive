@@ -4,7 +4,7 @@ go 1.26.0
 
 tool golang.org/x/tools/cmd/goimports
 
-require golang.org/x/tools v0.50.0
+require golang.org/x/tools v0.50.0 // indirect
 
 require (
 	github.com/google/go-cmp v0.7.0 // indirect

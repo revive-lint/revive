@@ -4,7 +4,7 @@ go 1.26.0
 
 tool mvdan.cc/sh/v3/cmd/shfmt
 
-require mvdan.cc/sh/v3 v3.13.1
+require mvdan.cc/sh/v3 v3.13.1 // indirect
 
 require (
 	github.com/go-quicktest/qt v1.102.0 // indirect

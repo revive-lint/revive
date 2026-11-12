@@ -4,7 +4,7 @@ go 1.26.0
 
 tool github.com/goreleaser/goreleaser/v2
 
-require github.com/goreleaser/goreleaser/v2 v2.12.7
+require github.com/goreleaser/goreleaser/v2 v2.12.7 // indirect
 
 require (
 	al.essio.dev/pkg/shellescape v1.6.0 // indirect

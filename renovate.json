@@ -9,24 +9,15 @@
     {
       "matchManagers": ["gomod"],
       "matchFileNames": ["go.mod"],
-      "matchDepTypes": ["direct"],
+      "matchDepTypes": ["require"],
       "groupName": "gomod",
-      "extends": ["schedule:monthly"],
-      "enabled": true
-    },
-    {
-      "matchManagers": ["gomod"],
-      "matchFileNames": ["go.mod", "tools/*/go.mod"],
-      "matchDepTypes": ["indirect"],
-      "enabled": false
+      "extends": ["schedule:monthly"]
     },
     {
       "matchManagers": ["gomod"],
       "matchFileNames": ["tools/*/go.mod"],
-      "matchDepTypes": ["direct"],
       "groupName": "tools gomod",
-      "extends": ["schedule:monthly"],
-      "enabled": true
+      "extends": ["schedule:monthly"]
     },
     {
       "matchManagers": ["npm"],
