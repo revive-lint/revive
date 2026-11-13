@@ -14,6 +14,8 @@ jobs:
 
     permissions:
       contents: write
+      attestations: write
+      id-token: write
 
     steps:
       - name: Checkout
@@ -39,6 +41,20 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate provenance for release artifacts
+        id: attest
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-checksums: ./dist/checksums.txt
+      - name: Upload provenance and publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cp "$BUNDLE" revive.intoto.jsonl
+          gh release upload "$TAG" revive.intoto.jsonl --clobber
+          gh release edit "$TAG" --draft=false
 
   buildx:
     runs-on: ubuntu-latest
