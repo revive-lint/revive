@@ -11,14 +11,15 @@ import (
 	"github.com/mgechev/revive/lint"
 )
 
-var (
-	deferOptionLoop             = config.NormalizeOption("loop")
-	deferOptionCallChain        = config.NormalizeOption("callChain")
-	deferOptionMethodCall       = config.NormalizeOption("methodCall")
-	deferOptionReturn           = config.NormalizeOption("return")
-	deferOptionRecover          = config.NormalizeOption("recover")
-	deferOptionImmediateRecover = config.NormalizeOption("immediateRecover")
-	deferOptionExitAfterDefer   = config.NormalizeOption("exitAfterDefer")
+// Subcase names normalized with [config.NormalizeOption].
+const (
+	deferOptionLoop             = "loop"
+	deferOptionCallChain        = "callchain"
+	deferOptionMethodCall       = "methodcall"
+	deferOptionReturn           = "return"
+	deferOptionRecover          = "recover"
+	deferOptionImmediateRecover = "immediaterecover"
+	deferOptionExitAfterDefer   = "exitafterdefer"
 )
 
 // DeferRule lints gotchas in defer statements.

@@ -13,11 +13,6 @@ type FileHeaderRule struct {
 	header string
 }
 
-var (
-	multiRegexp  = regexp.MustCompile(`^/\*`)
-	singleRegexp = regexp.MustCompile("^//")
-)
-
 var _ lint.ConfigurableRule = (*FileHeaderRule)(nil)
 
 // Configure validates the rule configuration, and configures the rule accordingly.
@@ -63,9 +58,9 @@ func (r *FileHeaderRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure
 	var comment strings.Builder
 	for _, c := range g.List {
 		text := c.Text
-		if multiRegexp.MatchString(text) {
+		if strings.HasPrefix(text, "/*") {
 			text = text[2 : len(text)-2]
-		} else if singleRegexp.MatchString(text) {
+		} else if strings.HasPrefix(text, "//") {
 			text = text[2:]
 		}
 		comment.WriteString(text)

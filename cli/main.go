@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/spf13/afero"
 
 	"github.com/mgechev/revive/config"
 	"github.com/mgechev/revive/internal/timing"
@@ -32,15 +31,23 @@ var (
 	commit  = defaultCommit
 	date    = defaultDate
 	builtBy = defaultBuilder
-	// AppFs is used for operations related to user config files.
-	AppFs = afero.NewOsFs()
 )
+
+type options struct {
+	configPath      string
+	excludePatterns revivelib.ArrayFlags
+	formatterName   string
+	version         bool
+	setExitStatus   bool
+	maxOpenFiles    int
+}
 
 // RunRevive runs the CLI for revive.
 func RunRevive(extraRules ...revivelib.ExtraRule) {
 	// Move parsing flags outside of init(); otherwise, tests don't work properly.
 	// More info: https://github.com/golang/go/issues/46869#issuecomment-865695953
-	if err := initConfig(); err != nil {
+	opts, err := initConfig()
+	if err != nil {
 		// Same exit codes as flag.ExitOnError.
 		exitCode := 2
 		if errors.Is(err, flag.ErrHelp) {
@@ -49,7 +56,7 @@ func RunRevive(extraRules ...revivelib.ExtraRule) {
 		os.Exit(exitCode) //revive:disable-line:deep-exit
 	}
 
-	if versionFlag {
+	if opts.version {
 		fmt.Print(getVersion(builtBy, date, commit, version))
 		return
 	}
@@ -61,7 +68,7 @@ func RunRevive(extraRules ...revivelib.ExtraRule) {
 	}
 
 	doneTotal := timing.Track(logger, "total")
-	exitCode, err := runRevive(logger, extraRules...)
+	exitCode, err := runRevive(logger, opts, extraRules...)
 	doneTotal("error", err)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -71,9 +78,9 @@ func RunRevive(extraRules ...revivelib.ExtraRule) {
 	os.Exit(exitCode) //revive:disable-line:deep-exit
 }
 
-func runRevive(logger *slog.Logger, extraRules ...revivelib.ExtraRule) (int, error) {
-	doneConfig := timing.Track(logger, "config-load", "config", configPath)
-	conf, err := config.GetConfig(configPath)
+func runRevive(logger *slog.Logger, opts options, extraRules ...revivelib.ExtraRule) (int, error) {
+	doneConfig := timing.Track(logger, "config-load", "config", opts.configPath)
+	conf, err := config.GetConfig(opts.configPath)
 	if err != nil {
 		doneConfig("error", err)
 		return 0, err
@@ -82,8 +89,8 @@ func runRevive(logger *slog.Logger, extraRules ...revivelib.ExtraRule) (int, err
 
 	revive, err := revivelib.New(
 		conf,
-		setExitStatus,
-		maxOpenFiles,
+		opts.setExitStatus,
+		opts.maxOpenFiles,
 		extraRules...,
 	)
 	if err != nil {
@@ -97,7 +104,7 @@ func runRevive(logger *slog.Logger, extraRules ...revivelib.ExtraRule) (int, err
 		packages = append(packages, revivelib.Include(file))
 	}
 
-	for _, file := range excludePatterns {
+	for _, file := range opts.excludePatterns {
 		packages = append(packages, revivelib.Exclude(file))
 	}
 
@@ -106,7 +113,7 @@ func runRevive(logger *slog.Logger, extraRules ...revivelib.ExtraRule) (int, err
 		return 0, err
 	}
 
-	output, exitCode, err := revive.Format(formatterName, failures)
+	output, exitCode, err := revive.Format(opts.formatterName, failures)
 	if err != nil {
 		return 0, err
 	}
@@ -117,17 +124,6 @@ func runRevive(logger *slog.Logger, extraRules ...revivelib.ExtraRule) (int, err
 
 	return exitCode, nil
 }
-
-var (
-	configPath      string
-	excludePatterns revivelib.ArrayFlags
-	formatterName   string
-	versionFlag     bool
-	setExitStatus   bool
-	maxOpenFiles    int
-)
-
-var originalUsage = flag.Usage
 
 func logo() string {
 	return color.YellowString(` _ __ _____   _(_)__  _____
@@ -171,11 +167,12 @@ func buildDefaultConfigPath() string {
 	return result
 }
 
-func initConfig() error {
+func initConfig() (options, error) {
 	if os.Getenv("REVIVE_FORCE_COLOR") == "1" {
 		color.NoColor = false //nolint:reassign // We want to reassign the default value of NoColor to force colorizing for non-TTY environments.
 	}
 
+	originalUsage := flag.Usage
 	flag.Usage = func() { //nolint:reassign // We want to reassign the default usage function to print our banner.
 		fmt.Println(banner())
 		originalUsage()
@@ -193,15 +190,17 @@ func initConfig() error {
 
 	defaultConfigPath := buildDefaultConfigPath()
 
-	flag.StringVar(&configPath, "config", defaultConfigPath, configUsage)
-	flag.Var(&excludePatterns, "exclude", excludeUsage)
-	flag.StringVar(&formatterName, "formatter", "", formatterUsage)
-	flag.BoolVar(&versionFlag, "version", false, versionUsage)
-	flag.BoolVar(&setExitStatus, "set_exit_status", false, exitStatusUsage)
-	flag.IntVar(&maxOpenFiles, "max_open_files", 0, maxOpenFilesUsage)
+	var opts options
+	flag.StringVar(&opts.configPath, "config", defaultConfigPath, configUsage)
+	flag.Var(&opts.excludePatterns, "exclude", excludeUsage)
+	flag.StringVar(&opts.formatterName, "formatter", "", formatterUsage)
+	flag.BoolVar(&opts.version, "version", false, versionUsage)
+	flag.BoolVar(&opts.setExitStatus, "set_exit_status", false, exitStatusUsage)
+	flag.IntVar(&opts.maxOpenFiles, "max_open_files", 0, maxOpenFilesUsage)
 
 	flag.CommandLine.Init(os.Args[0], flag.ContinueOnError)
-	return flag.CommandLine.Parse(os.Args[1:])
+	err := flag.CommandLine.Parse(os.Args[1:])
+	return opts, err
 }
 
 // getVersion returns build info (version, commit, date, and builtBy).
@@ -229,6 +228,6 @@ func getVersion(builtBy, date, commit, version string) string {
 }
 
 func fileExist(path string) bool {
-	_, err := AppFs.Stat(path)
+	_, err := os.Stat(path) //nolint:gosec // ignore G703: path is the user config location from $XDG_CONFIG_HOME or $HOME
 	return err == nil
 }
