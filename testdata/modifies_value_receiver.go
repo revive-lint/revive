@@ -47,3 +47,13 @@ func (this data) assignmentOperators() {
 	this.num >>= 1 // MATCH /suspicious assignment to a by-value method receiver/
 	this.num <<= 1 // MATCH /suspicious assignment to a by-value method receiver/
 }
+
+type counter int
+
+func (c counter) increment() {
+	c++ // MATCH /suspicious assignment to a by-value method receiver/
+}
+
+func (c counter) decrement() {
+	c-- // MATCH /suspicious assignment to a by-value method receiver/
+}
