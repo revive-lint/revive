@@ -18,6 +18,8 @@ func (*UnconditionalRecursionRule) Apply(file *lint.File, _ lint.Arguments) []li
 		failures = append(failures, failure)
 	}
 
+	pkgAliases := astutils.NewExitPkgAliases(file.AST.Imports)
+
 	// Range over global declarations of the file to detect func/method declarations and analyze them
 	for _, decl := range file.AST.Decls {
 		n, ok := decl.(*ast.FuncDecl)
@@ -42,6 +44,7 @@ func (*UnconditionalRecursionRule) Apply(file *lint.File, _ lint.Arguments) []li
 		w := &lintUnconditionalRecursionRule{
 			onFailure:   onFailure,
 			currentFunc: &funcStatus{&funcDesc{rec, n.Name}, false},
+			pkgAliases:  pkgAliases,
 		}
 
 		ast.Walk(w, n.Body)
@@ -76,6 +79,7 @@ type lintUnconditionalRecursionRule struct {
 	onFailure     func(lint.Failure)
 	currentFunc   *funcStatus
 	inGoStatement bool
+	pkgAliases    astutils.ExitPkgAliases
 }
 
 // Visit will traverse function's body we search for calls to the function itself.
@@ -171,7 +175,7 @@ func (w *lintUnconditionalRecursionRule) updateFuncStatus(node ast.Node) {
 	w.currentFunc.seenConditionalExit = w.hasControlExit(node)
 }
 
-func (*lintUnconditionalRecursionRule) hasControlExit(node ast.Node) bool {
+func (w *lintUnconditionalRecursionRule) hasControlExit(node ast.Node) bool {
 	// isExit returns true if the given node makes control exit the function
 	isExit := func(node ast.Node) bool {
 		switch n := node.(type) {
@@ -193,7 +197,7 @@ func (*lintUnconditionalRecursionRule) hasControlExit(node ast.Node) bool {
 
 			functionName := se.Sel.Name
 			pkgName := id.Name
-			return astutils.IsCallToExitFunction(pkgName, functionName, n.Args)
+			return astutils.IsCallToExitFunction(pkgName, functionName, n.Args, w.pkgAliases)
 		}
 
 		return false
