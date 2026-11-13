@@ -52,6 +52,10 @@ func (w lintUseFmtPrint) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 
+	if id.Obj != nil {
+		return nil // the identifier resolves to a declaration (parameter, variable, function...), it is not the built-in
+	}
+
 	name := id.Name
 	switch name {
 	case "print":
