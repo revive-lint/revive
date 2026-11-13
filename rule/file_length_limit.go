@@ -3,9 +3,7 @@ package rule
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"go/token"
-	"strings"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -34,22 +32,26 @@ func (r *FileLengthLimitRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 	}
 
 	all := 0
-	blank := 0
+	excluded := map[int]struct{}{} // physical lines that are not counted
+	if r.skipComments {
+		for _, cg := range file.AST.Comments {
+			for _, comment := range cg.List {
+				start := file.ToPosition(comment.Pos()).Line
+				end := file.ToPosition(comment.End()).Line
+				for line := start; line <= end; line++ {
+					excluded[line] = struct{}{}
+				}
+			}
+		}
+	}
 	for line := range bytes.Lines(file.Content()) {
 		all++
-		if len(bytes.TrimSpace(line)) == 0 {
-			blank++
+		if r.skipBlankLines && len(bytes.TrimSpace(line)) == 0 {
+			excluded[all] = struct{}{}
 		}
 	}
 
-	lines := all
-	if r.skipComments {
-		lines -= countCommentLines(file.AST.Comments)
-	}
-
-	if r.skipBlankLines {
-		lines -= blank
-	}
+	lines := all - len(excluded)
 
 	if lines <= r.max {
 		return nil
@@ -116,22 +118,4 @@ func (r *FileLengthLimitRule) Configure(arguments lint.Arguments) error {
 // Name returns the rule name.
 func (*FileLengthLimitRule) Name() string {
 	return "file-length-limit"
-}
-
-func countCommentLines(comments []*ast.CommentGroup) int {
-	count := 0
-	for _, cg := range comments {
-		for _, comment := range cg.List {
-			if len(comment.Text) < 2 {
-				continue
-			}
-			switch comment.Text[1] {
-			case '/': // single-line comment
-				count++
-			case '*': // multi-line comment
-				count += strings.Count(comment.Text, "\n") + 1
-			}
-		}
-	}
-	return count
 }
