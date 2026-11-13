@@ -75,3 +75,12 @@ func identicalSwitchBranches() {
 		println("dup", v)
 	}
 }
+
+var packageLevelFuncLit = func() {
+	switch a { // MATCH /"switch" with identical branches (lines 81 and 83)/
+	case 1:
+		foo()
+	case 2:
+		foo()
+	}
+}

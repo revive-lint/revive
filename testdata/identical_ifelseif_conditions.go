@@ -51,3 +51,9 @@ func identicalBranches() {
 		}
 	}
 }
+
+var packageLevelFuncLit = func() {
+	if a {
+	} else if a { // MATCH /"if...else if" chain with identical conditions (lines 56 and 57)/
+	}
+}

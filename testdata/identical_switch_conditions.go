@@ -53,3 +53,10 @@ func enforceSwitchStyle3() {
 		// ...
 	}
 }
+
+var packageLevelFuncLit = func() {
+	switch {
+	case a > 0:
+	case a > 0: // MATCH /case clause at line 59 has the same condition/
+	}
+}
