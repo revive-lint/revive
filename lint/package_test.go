@@ -140,3 +140,48 @@ var (
 		t.Errorf("got types %q, want %q", got, want)
 	}
 }
+
+func TestPackage_TypeCheckRefreshesModuleImports(t *testing.T) {
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOWORK", "off")
+
+	rootDir := t.TempDir()
+	files := map[string]string{
+		"go.mod": "module example.com/m\n\ngo 1.21\n",
+		"a/a.go": "package a\nimport \"example.com/m/b\"\nvar X = b.Value\n",
+		"b/b.go": "package b\nvar Value int\n",
+	}
+	for name, content := range files {
+		path := filepath.Join(rootDir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	l := lint.New(os.ReadFile, 0)
+	pkgs := [][]string{{filepath.Join(rootDir, "a", "a.go")}}
+	rules := []lint.Rule{&varTypesRule{}}
+	for _, want := range []string{"int", "string"} {
+		t.Run(want, func(t *testing.T) {
+			// Reuse the linter after changing an imported package on disk.
+			source := "package b\nvar Value " + want + "\n"
+			if err := os.WriteFile(filepath.Join(rootDir, "b", "b.go"), []byte(source), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			failures, err := l.Lint(pkgs, rules, lint.Config{})
+			if err != nil {
+				t.Fatal("unexpected error from linting:", err)
+			}
+			var got []string
+			for failure := range failures {
+				got = append(got, failure.Failure)
+			}
+			if !slices.Equal(got, []string{want}) {
+				t.Errorf("got types %q, want %q", got, []string{want})
+			}
+		})
+	}
+}

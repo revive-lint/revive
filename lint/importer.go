@@ -16,7 +16,7 @@ import (
 //
 // It uses [packages.Load] in the target module's build environment, including when
 // revive is built with -trimpath. Dependencies are loaded lazily in batches and
-// cached for the lifetime of the process.
+// cached for a single lint invocation.
 type moduleExports struct {
 	dir string
 
@@ -31,13 +31,11 @@ type exportResult struct {
 	err  error
 }
 
-// moduleExportsCache caches export resolvers by module root directory.
-var moduleExportsCache sync.Map
-
 // newExportResolvers returns the module export resolver for each linted package.
 func newExportResolvers(pkgs [][]string) ([]*moduleExports, error) {
 	resolvers := make([]*moduleExports, len(pkgs))
 	byDir := map[string]*moduleExports{}
+	byModule := map[string]*moduleExports{}
 	for n, files := range pkgs {
 		if len(files) == 0 {
 			continue
@@ -54,10 +52,10 @@ func newExportResolvers(pkgs [][]string) ([]*moduleExports, error) {
 			if modFile, err := retrieveModFile(dir); err == nil {
 				root = filepath.Dir(modFile)
 			}
-			v, _ := moduleExportsCache.LoadOrStore(root, &moduleExports{dir: root})
-			m, ok = v.(*moduleExports)
-			if !ok {
-				return nil, fmt.Errorf("invalid export resolver for module %q: got %T", root, v)
+			m = byModule[root]
+			if m == nil {
+				m = &moduleExports{dir: root}
+				byModule[root] = m
 			}
 			m.addPackage(dir)
 			byDir[dir] = m
