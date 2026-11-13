@@ -55,22 +55,20 @@ const (
 	timeDateArgTimezone   timeDateArgument = "timezone"
 )
 
-var (
-	// timeDateArgumentNames are the names of the arguments of [time.Date].
-	timeDateArgumentNames = []timeDateArgument{
-		timeDateArgYear,
-		timeDateArgMonth,
-		timeDateArgDay,
-		timeDateArgHour,
-		timeDateArgMinute,
-		timeDateArgSecond,
-		timeDateArgNanosecond,
-		timeDateArgTimezone,
-	}
+// timeDateArgumentNames are the names of the arguments of [time.Date].
+var timeDateArgumentNames = [...]timeDateArgument{
+	timeDateArgYear,
+	timeDateArgMonth,
+	timeDateArgDay,
+	timeDateArgHour,
+	timeDateArgMinute,
+	timeDateArgSecond,
+	timeDateArgNanosecond,
+	timeDateArgTimezone,
+}
 
-	// timeDateArity is the number of arguments of [time.Date].
-	timeDateArity = len(timeDateArgumentNames)
-)
+// timeDateArity is the number of arguments of [time.Date].
+const timeDateArity = len(timeDateArgumentNames)
 
 var timeDateArgumentBoundaries = map[timeDateArgument][2]int{
 	// year is not validated

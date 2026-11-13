@@ -34,10 +34,12 @@ type Package struct {
 	logger *slog.Logger
 }
 
-var (
+const (
 	trueValue  = 1
 	falseValue = 2
+)
 
+var (
 	// Go111 is a constant representing the Go version 1.11.
 	Go111 = goversion.Must(goversion.NewVersion("1.11"))
 	// Go115 is a constant representing the Go version 1.15.
