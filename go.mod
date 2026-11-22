@@ -1,4 +1,4 @@
-module github.com/mgechev/revive
+module github.com/revive-lint/revive
 
 go 1.26.0
 
