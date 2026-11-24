@@ -1,0 +1,2 @@
+# Intentionally malformed TOML (unterminated table header) to test config parse errors.
+[rule.

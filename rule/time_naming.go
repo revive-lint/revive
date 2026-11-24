@@ -22,7 +22,7 @@ func (*TimeNamingRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 
 	w := &lintTimeNames{file, onFailure}
 
-	file.Pkg.TypeCheck()
+	file.Pkg.TypeCheck() //nolint:errcheck,gosec // G104: Errors unhandled
 	ast.Walk(w, file.AST)
 	return failures
 }

@@ -20,3 +20,11 @@ func TestCyclomatic(t *testing.T) {
 		Arguments: lint.Arguments{int64(3)},
 	})
 }
+
+func TestCyclomaticConfigureResetsPreviousOptions(t *testing.T) {
+	r := &rule.CyclomaticRule{}
+	testRule(t, "cyclomatic", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{int64(1)},
+	})
+	testRule(t, "cyclomatic_default", r)
+}

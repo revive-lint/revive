@@ -22,7 +22,7 @@ func (*UnexportedReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fai
 
 	var failures []lint.Failure
 
-	file.Pkg.TypeCheck()
+	file.Pkg.TypeCheck() //nolint:errcheck,gosec // G104: Errors unhandled
 
 	for _, decl := range file.AST.Decls {
 		fn, ok := decl.(*ast.FuncDecl)

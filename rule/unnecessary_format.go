@@ -3,6 +3,8 @@ package rule
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
+	"strconv"
 	"strings"
 
 	"github.com/mgechev/revive/internal/astutils"
@@ -105,14 +107,14 @@ func (w lintUnnecessaryFormat) Visit(n ast.Node) ast.Visitor {
 		return w // not enough params /!\
 	}
 
-	arg := ce.Args[pos]
-	if !astutils.IsStringLiteral(arg) {
+	lit, ok := ce.Args[pos].(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
 		return w
 	}
 
-	format := astutils.GoFmt(arg)
-
-	if strings.Contains(format, `%`) {
+	// Inspect the string value, not its source spelling, to spot directives written as escapes, e.g. "\x25d".
+	format, err := strconv.Unquote(lit.Value)
+	if err != nil || strings.Contains(format, "%") {
 		return w
 	}
 

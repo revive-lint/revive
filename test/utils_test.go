@@ -55,7 +55,7 @@ func testRuleWithLintConfig(tb testing.TB, filename string, rule lint.Rule, conf
 	baseDir := filepath.Join("..", "testdata", filepath.Dir(filename))
 	filename = filepath.Base(filename) + ".go"
 	fullFilePath := filepath.Join(baseDir, filename)
-	src, err := os.ReadFile(fullFilePath) //nolint:gosec // ignore G304: potential file inclusion via variable
+	src, err := os.ReadFile(fullFilePath)
 	if err != nil {
 		tb.Fatalf("Bad filename path in test for %s: %v", rule.Name(), err)
 	}
@@ -236,7 +236,7 @@ func parseInstructions(tb testing.TB, filename string, src []byte) []instruction
 	for _, cg := range f.Comments {
 		ln := fset.Position(cg.Pos()).Line
 		raw := cg.Text()
-		for line := range strings.SplitSeq(raw, "\n") {
+		for line := range strings.Lines(raw) {
 			if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "ignore") {
 				continue
 			}

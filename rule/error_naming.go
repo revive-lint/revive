@@ -49,7 +49,11 @@ func (w lintErrors) Visit(_ ast.Node) ast.Visitor {
 			continue
 		}
 		for _, spec := range gd.Specs {
-			spec := spec.(*ast.ValueSpec)
+			spec, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+
 			if len(spec.Names) != 1 || len(spec.Values) != 1 {
 				continue
 			}

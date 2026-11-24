@@ -1,7 +1,6 @@
 package lint
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"go/token"
@@ -11,10 +10,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	goversion "github.com/hashicorp/go-version"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/mgechev/revive/internal/timing"
 )
 
 // ReadFile defines an abstraction for reading files.
@@ -47,7 +49,7 @@ func (l *Linter) SetLogger(logger *slog.Logger) {
 	}
 }
 
-func (l *Linter) readFile(path string) (result []byte, err error) {
+func (l *Linter) readFile(path string) ([]byte, error) {
 	if l.fileReadTokens != nil {
 		// "take" a token by writing to the channel.
 		// It will block if no more space in the channel's buffer
@@ -64,6 +66,7 @@ func (l *Linter) readFile(path string) (result []byte, err error) {
 var (
 	generatedPrefix  = []byte("// Code generated ")
 	generatedSuffix  = []byte(" DO NOT EDIT.")
+	packageKeyword   = []byte("package")
 	defaultGoVersion = goversion.Must(goversion.NewVersion("1.0"))
 )
 
@@ -71,7 +74,9 @@ var (
 func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-chan Failure, error) {
 	failures := make(chan Failure)
 
+	doneVersions := timing.Track(l.logger, "go-version-detection")
 	perModVersions := map[string]*goversion.Version{}
+	modules := 0
 	perPkgVersions := make([]*goversion.Version, len(packages))
 	for n, files := range packages {
 		if len(files) == 0 {
@@ -84,6 +89,7 @@ func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-cha
 
 		dir, err := filepath.Abs(filepath.Dir(files[0]))
 		if err != nil {
+			doneVersions("error", err)
 			return nil, err
 		}
 
@@ -104,11 +110,24 @@ func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-cha
 			// No luck finding the go.mod file thus set the default Go version
 			v = defaultGoVersion
 			d = dir
+			l.logger.Debug("go module not found, using the default Go version", "dir", dir, "version", v, "error", err)
+		} else {
+			modules++
+			l.logger.Debug("go module detected", "dir", d, "version", v)
 		}
 		perModVersions[d] = v
 		perPkgVersions[n] = v
 	}
 
+	doneVersions("packages", len(packages), "modules", modules)
+
+	var ruleTimings *timing.Rules
+	if timing.Enabled(l.logger) {
+		ruleTimings = timing.NewRules()
+		ruleSet = timedRules(ruleSet, ruleTimings)
+	}
+
+	doneLint := timing.Track(l.logger, "lint")
 	var wg errgroup.Group
 	for n := range packages {
 		wg.Go(func() error {
@@ -126,6 +145,8 @@ func (l *Linter) Lint(packages [][]string, ruleSet []Rule, config Config) (<-cha
 		if err != nil {
 			failures <- NewInternalFailure(err.Error())
 		}
+		doneLint("packages", len(packages), "rules", len(ruleSet))
+		ruleTimings.Log(l.logger)
 		close(failures)
 	}()
 
@@ -141,23 +162,42 @@ func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleS
 		fset:      token.NewFileSet(),
 		files:     map[string]*File{},
 		goVersion: gover,
+		logger:    l.logger,
 	}
+
+	// Timing attributes are boxed into interfaces, which allocates: build them only when they are logged.
+	timed := timing.Enabled(l.logger)
+	donePackage := timing.Track(l.logger, "package-lint")
+	defer func() {
+		if timed {
+			donePackage("dir", filepath.Dir(filenames[0]), "files", len(pkg.files))
+		}
+	}()
+
+	doneReadParse := timing.Track(l.logger, "package-read-parse")
+	var generated, invalid int
 	for _, filename := range filenames {
 		content, err := l.readFile(filename)
 		if err != nil {
+			doneReadParse("files", len(filenames), "error", err)
 			return err
 		}
 		if !config.IgnoreGeneratedHeader && isGenerated(content) {
+			generated++
 			continue
 		}
 
 		file, err := NewFile(filename, content, pkg)
 		if err != nil {
+			invalid++
 			addInvalidFileFailure(filename, err.Error(), failures)
 			continue
 		}
 		file.logger = l.logger
 		pkg.files[filename] = file
+	}
+	if timed {
+		doneReadParse("files", len(filenames), "generated", generated, "invalid", invalid)
 	}
 
 	if len(pkg.files) == 0 {
@@ -167,7 +207,10 @@ func (l *Linter) lintPackage(filenames []string, gover *goversion.Version, ruleS
 	return pkg.lint(ruleSet, config, failures)
 }
 
-func detectGoMod(dir string) (rootDir string, ver *goversion.Version, err error) {
+// detectGoMod looks for the go.mod file in dir and its parent directories.
+// It returns the directory containing the go.mod file and the Go version declared in it.
+// It returns an error if no go.mod file is found, or if it can't be read, parsed or has no Go version.
+func detectGoMod(dir string) (string, *goversion.Version, error) {
 	modFileName, err := retrieveModFile(dir)
 	if err != nil {
 		return "", nil, fmt.Errorf("%q doesn't seem to be part of a Go module", dir)
@@ -187,7 +230,7 @@ func detectGoMod(dir string) (rootDir string, ver *goversion.Version, err error)
 		return "", nil, fmt.Errorf("%q does not specify a Go version", modFileName)
 	}
 
-	ver, err = goversion.NewVersion(modAst.Go.Version)
+	ver, err := goversion.NewVersion(modAst.Go.Version)
 	return filepath.Dir(modFileName), ver, err
 }
 
@@ -214,11 +257,13 @@ func retrieveModFile(dir string) (string, error) {
 
 // isGenerated reports whether the source file is generated code
 // according to the rules from https://go.dev/s/generatedcode.
-// This is inherited from the original go lint.
+// The header must appear before the package clause, so scanning stops there.
 func isGenerated(src []byte) bool {
-	sc := bufio.NewScanner(bytes.NewReader(src))
-	for sc.Scan() {
-		b := sc.Bytes()
+	for line := range bytes.Lines(src) {
+		b := bytes.TrimSuffix(bytes.TrimSuffix(line, []byte{'\n'}), []byte{'\r'})
+		if bytes.HasPrefix(b, packageKeyword) {
+			return false
+		}
 		if bytes.HasPrefix(b, generatedPrefix) && bytes.HasSuffix(b, generatedSuffix) && len(b) >= len(generatedPrefix)+len(generatedSuffix) {
 			return true
 		}
@@ -266,4 +311,26 @@ func getPositionInvalidFile(filename, s string) FailurePosition {
 			Column:   column,
 		},
 	}
+}
+
+// timedRules wraps each rule to accumulate the time spent applying it into timings.
+func timedRules(rules []Rule, timings *timing.Rules) []Rule {
+	result := make([]Rule, len(rules))
+	for i, r := range rules {
+		result[i] = timedRule{Rule: r, stat: timings.Stat(r.Name())}
+	}
+	return result
+}
+
+type timedRule struct {
+	Rule
+
+	stat *timing.RuleStat
+}
+
+func (r timedRule) Apply(file *File, arguments Arguments) []Failure {
+	start := time.Now()
+	defer func() { r.stat.Add(time.Since(start)) }()
+
+	return r.Rule.Apply(file, arguments)
 }

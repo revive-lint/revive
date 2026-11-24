@@ -1,0 +1,8 @@
+{
+  "name": "revive-tools-renovate",
+  "private": true,
+  "description": "Pins renovate, used to validate renovate.json.",
+  "dependencies": {
+    "renovate": "43.150.0"
+  }
+}

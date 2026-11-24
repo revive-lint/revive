@@ -7,7 +7,7 @@ import (
 	"github.com/mgechev/revive/rule"
 )
 
-func TestEarlyReturn_Configure(t *testing.T) {
+func TestEarlyReturnRule_Configure(t *testing.T) {
 	tests := []struct {
 		name      string
 		arguments lint.Arguments

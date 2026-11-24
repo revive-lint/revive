@@ -21,6 +21,33 @@ make build
 
 The command will produce the `revive` binary in the root of the project.
 
+## Test
+
+Run the whole suite with:
+
+```bash
+make test
+```
+
+The tests come in two kinds:
+
+- **Rule tests** in [`test/`](./test), one `_test.go` per rule, driven by the Go source fixtures in [`testdata/`](./testdata).
+  They call the linter as a library and compare the reported failures with the `// MATCH` comments in the fixtures.
+  Run a single rule with `go test -run TestUnusedParam ./test/...`.
+- **End-to-end tests** in [`cli/e2e_test.go`](./cli/e2e_test.go) (`package cli_test`), run with `go test -run TestRevive ./cli/`.
+  They execute revive as a separate process and assert on its exit code and on its output on stdout and stderr,
+  which covers the behavior a library call cannot:
+  flag parsing, `-set_exit_status`, the `warning-code` and `error-code` config settings, `-exclude`, and config file errors.
+
+The end-to-end tests do not build a binary. The test binary re-executes itself with `REVIVE_E2E_RUN_REVIVE=1` set,
+and its `TestMain` sees that variable and calls `RunRevive()` instead of running any test, so coverage still counts the CLI code.
+
+Fixtures for these tests are in [`cli/testdata/`](./cli/testdata): `clean.go` reports nothing, `bad.go` reports two failures,
+and each `.toml` file sets up one configuration under test. The subprocess runs in that directory with `HOME`, `USERPROFILE`,
+and `XDG_CONFIG_HOME` pointed at temporary directories, so a `revive.toml` in your home directory cannot affect the outcome.
+A case that needs one writes it there itself through the `homeConfig` and `xdgConfig` fields. That is how these tests cover
+the default config discovery: `$XDG_CONFIG_HOME/revive.toml` first, then `$HOME/revive.toml`, then the built-in defaults.
+
 ## Logging
 
 By default, any logging output is disabled when `REVIVE_LOG_LEVEL` is unset or empty.
@@ -37,6 +64,44 @@ Logs are output to stderr:
 ```sh
 REVIVE_LOG_LEVEL=debug go run main.go
 ```
+
+### Timing
+
+At the `debug` level, revive also reports how long each part of a run takes. Use it to find out why a run is slow:
+
+```sh
+REVIVE_LOG_LEVEL=debug revive ./... 2>timing.log
+```
+
+Every measurement is a `phase completed` record carrying a `phase` and a `duration`:
+
+| Phase | Reported | Measures |
+| --- | --- | --- |
+| `config-load` | once | reading and parsing the configuration file |
+| `rules-setup` | once | instantiating and configuring the enabled rules |
+| `package-resolution` | once | expanding the given patterns into packages and files |
+| `go-version-detection` | once | locating `go.mod` files and detecting the Go version of every package |
+| `package-read-parse` | per package | reading the files and parsing them into ASTs, including waiting for a `-max_open_files` slot |
+| `type-check` | per package | type checking, triggered lazily by the first typed rule |
+| `scan-sortable` | per package | collecting the types implementing `sort.Interface` |
+| `package-lint` | per package | the whole package: read, parse, type check, and all rules |
+| `disabled-intervals` | per file | scanning the file for `revive:disable` directives |
+| `file-lint` | per file | applying all rules to the file; `rule_failures` excludes the directive failures counted in `disabled-intervals` |
+| `lint` | once | all packages |
+| `format` | once | finishing the formatter once every failure has been delivered to it |
+| `total` | once | the whole run |
+
+The formatter runs concurrently with linting, so `format` only covers what is left after `lint`, not the whole formatting work.
+Conversely, every phase that reports failures includes the time spent waiting for the formatter to accept them:
+`file-lint` and `package-lint`, but also `disabled-intervals` (failures of the `specify-disable-*` directives) and `package-read-parse` (invalid files).
+With a slow formatter or many failures, they can be high even though the work itself is fast.
+
+After linting, each rule gets a `rule timing` record with its total duration, the number of applications, and the average, slowest rule first.
+The type check of a package holds a lock that most package accessors also take (`IsMain`, `IsAtLeastGoVersion`, `Sortable`, `TypesInfo`, …).
+So a rule's duration includes the package type check when that rule triggers it, or the wait for it while another file triggers it,
+whether the rule is typed or not: compare it with the `type-check` records before blaming the rule.
+
+Timing is only collected when `REVIVE_LOG_LEVEL=debug`.
 
 ## Coding standards
 
@@ -57,7 +122,7 @@ Each rule needs to implement the `lint.Rule` interface:
 ```go
 type Rule interface {
 	Name() string
-	Apply(*File, Arguments) []Failure
+	Apply(file *File, arguments Arguments) []Failure
 }
 ```
 
@@ -65,7 +130,7 @@ All rules with a configuration must implement `lint.ConfigurableRule` interface:
 
 ```go
 type ConfigurableRule interface {
-	Configure(Arguments) error
+	Configure(arguments Arguments) error
 }
 ```
 
@@ -79,6 +144,10 @@ The `Arguments` type is an alias of the type `[]any`. The arguments of the rule 
 
 Every `lint.Failure` reported by a rule must set `Category` to one of the `lint.FailureCategory*` constants defined in
 [`lint/failure.go`](/lint/failure.go). Failures without a category are rejected by the test harness.
+
+Keep the failure messages of existing rules stable: do not reword one unless the change is necessary, for example because
+the message became wrong after a behavior change. Users grep for these strings, match them in `// MATCH` test fixtures,
+and baseline them in CI, so a cosmetic rewording breaks setups without making anything better.
 
 ### Example
 
@@ -125,8 +194,8 @@ and [mdsf](https://github.com/hougesen/mdsf) to check Markdown files.
 1. Install [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2#install).
 2. Install [markdown-toc](https://github.com/jonschlinkert/markdown-toc#quick-start).
 3. Install [mdsf](https://mdsf.mhouge.dk/#installation) and formatters:
-    - [goimports](https://pkg.go.dev/golang.org/x/tools/cmd/goimports) for `go`: `go install golang.org/x/tools/cmd/goimports@latest`
-    - [shfmt](https://github.com/mvdan/sh#shfmt) for `sh, shell, bash`: `go install mvdan.cc/sh/v3/cmd/shfmt@latest`
+    - [goimports](https://pkg.go.dev/golang.org/x/tools/cmd/goimports) for `go`: `go -C tools/goimports install golang.org/x/tools/cmd/goimports`
+    - [shfmt](https://github.com/mvdan/sh#shfmt) for `sh, shell, bash`: `go -C tools/shfmt install mvdan.cc/sh/v3/cmd/shfmt`
     - [taplo](https://taplo.tamasfe.dev/cli/installation/binary.html) for `toml`
 4. Run the following command to check formatting:
 

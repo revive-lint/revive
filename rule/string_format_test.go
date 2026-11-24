@@ -8,7 +8,7 @@ import (
 	"github.com/mgechev/revive/rule"
 )
 
-func TestStringFormatConfigure(t *testing.T) {
+func TestStringFormatRule_Configure(t *testing.T) {
 	type argumentsTest struct {
 		name      string
 		arguments lint.Arguments

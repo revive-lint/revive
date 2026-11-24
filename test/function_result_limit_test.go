@@ -12,3 +12,11 @@ func TestFunctionResultsLimit(t *testing.T) {
 		Arguments: lint.Arguments{int64(3)},
 	})
 }
+
+func TestFunctionResultsLimitConfigureResetsPreviousOptions(t *testing.T) {
+	r := &rule.FunctionResultsLimitRule{}
+	testRule(t, "function_result_limit_5", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{int64(5)},
+	})
+	testRule(t, "function_result_limit", r)
+}

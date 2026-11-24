@@ -78,7 +78,7 @@ func (w lintUseFmtPrint) Visit(node ast.Node) ast.Visitor {
 }
 
 func (lintUseFmtPrint) callArgsAsStr(args []ast.Expr) string {
-	strs := []string{}
+	strs := make([]string, 0, len(args))
 	for _, expr := range args {
 		strs = append(strs, astutils.GoFmt(expr))
 	}
@@ -86,7 +86,7 @@ func (lintUseFmtPrint) callArgsAsStr(args []ast.Expr) string {
 	return strings.Join(strs, ", ")
 }
 
-func (*UseFmtPrintRule) analyzeRedefinitions(decls []ast.Decl) (redefinesPrint, redefinesPrintln bool) {
+func (*UseFmtPrintRule) analyzeRedefinitions(decls []ast.Decl) (redefinesPrint, redefinesPrintln bool) { //nolint:nonamedreturns // names are used for clarity
 	for _, decl := range decls {
 		fnDecl, ok := decl.(*ast.FuncDecl)
 		if !ok {

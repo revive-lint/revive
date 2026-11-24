@@ -6,30 +6,71 @@ version: "2"
 linters:
   default: none
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - containedctx
+    - contextcheck
+    - copyloopvar
+    - dogsled
     - dupword
+    - durationcheck
     - embeddedstructfieldcheck
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exptostd
+    - fatcontext
+    - forcetypeassert
+    - gocheckcompilerdirectives
+    - gochecknoinits
+    - gochecksumtype
     - gocritic
     - godoclint
     - godot
+    - gomoddirectives
+    - goprintffuncname
     - gosec
     - govet
+    - iface
+    - inamedparam
     - ineffassign
+    - interfacebloat
+    - intrange
+    - iotamixing
+    - loggercheck
+    - makezero
+    - mirror
     - misspell
     - modernize
     - musttag
+    - nakedret
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - noctx
     - nolintlint
+    - nonamedreturns
+    - nosprintfhostport
+    - prealloc
+    - predeclared
     - reassign
     - recvcheck
     - revive
     - sloglint
     - staticcheck
+    - testableexamples
     - testpackage
     - thelper
-    - thelper
+    - tparallel
     - unconvert
     - unparam
     - unused
+    - usestdlibvars
+    - usetesting
     - wastedassign
+    - whitespace
 
   exclusions:
     warn-unused: true
@@ -38,33 +79,7 @@ linters:
         linters:
           - godoclint
           - godot
-      - linters:
           - gosec
-        path: rule/context_keys_type.go
-      - linters:
-          - gosec
-        path: rule/errorf.go
-      - linters:
-          - gosec
-        path: rule/modifies_value_receiver.go
-      - linters:
-          - gosec
-        path: rule/range_val_address.go
-      - linters:
-          - gosec
-        path: rule/string_of_int.go
-      - linters:
-          - gosec
-        path: rule/time_naming.go
-      - linters:
-          - gosec
-        path: rule/unexported_return.go
-      - linters:
-          - gosec
-        path: rule/unhandled_error.go
-      - linters:
-          - gosec
-        path: rule/var_declarations.go
 
   settings:
     gocritic:
@@ -112,6 +127,8 @@ linters:
         - name: blank-imports
         - name: bool-literal-in-expr
         - name: call-to-gc
+        - name: cognitive-complexity
+          disabled: true
         - name: comment-spacings
         - name: comments-density
         - name: confusing-naming
@@ -172,11 +189,13 @@ linters:
         - name: inefficient-map-lookup
         - name: line-length-limit
           arguments: [200]
+        - name: marshal-receiver
         - name: max-control-nesting
         - name: max-public-structs
           arguments: [10]
         - name: modifies-parameter
         - name: modifies-value-receiver
+        - name: multiline-if-init
         - name: nested-structs
         - name: optimize-operands-order
         - name: package-comments
@@ -215,6 +234,7 @@ linters:
         - name: use-any
         - name: use-errors-new
         - name: use-fmt-print
+        - name: use-slices-concat
         - name: use-slices-sort
         - name: use-waitgroup-go
         - name: useless-break
@@ -224,6 +244,18 @@ linters:
         - name: waitgroup-by-value
     unparam:
       check-exported: true
+    usestdlibvars:
+      http-method: true
+      http-status-code: true
+      time-weekday: true
+      time-month: true
+      time-layout: true
+      time-date-month: true
+      crypto-hash: true
+      default-rpc-path: true
+      sql-isolation-level: true
+      tls-signature-scheme: true
+      constant-kind: true
 
 formatters:
   enable:
@@ -245,3 +277,6 @@ issues:
   max-same-issues: 0
   # Show all issues for a line.
   uniq-by-line: false
+
+run:
+  allow-parallel-runners: true

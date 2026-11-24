@@ -115,8 +115,8 @@ func (w lintErrorStrings) Visit(n ast.Node) ast.Visitor {
 	if s == "" {
 		return w
 	}
-	clean, conf := lintErrorString(s)
-	if clean {
+	conf := lintErrorStringConfidence(s)
+	if conf == 0 {
 		return w
 	}
 	w.onFailure(lint.Failure{
@@ -151,44 +151,44 @@ func (w lintErrorStrings) match(expr *ast.CallExpr) bool {
 
 // getMessage returns the message depending on its position.
 // Returns false if the cast is unsuccessful.
-func (w lintErrorStrings) getMessage(expr *ast.CallExpr) (s *ast.BasicLit, success bool) {
+func (w lintErrorStrings) getMessage(expr *ast.CallExpr) (*ast.BasicLit, bool) {
 	str, ok := w.checkArg(expr, 0)
 	if ok {
 		return str, true
 	}
 	if len(expr.Args) < 2 {
-		return s, false
+		return nil, false
 	}
 	str, ok = w.checkArg(expr, 1)
 	if !ok {
-		return s, false
+		return nil, false
 	}
 	return str, true
 }
 
-func (lintErrorStrings) checkArg(expr *ast.CallExpr, arg int) (s *ast.BasicLit, success bool) {
+func (lintErrorStrings) checkArg(expr *ast.CallExpr, arg int) (*ast.BasicLit, bool) {
 	str, ok := expr.Args[arg].(*ast.BasicLit)
 	if !ok {
-		return s, false
+		return nil, false
 	}
 	if str.Kind != token.STRING {
-		return s, false
+		return nil, false
 	}
 	return str, true
 }
 
-func lintErrorString(s string) (isClean bool, conf float64) {
+func lintErrorStringConfidence(s string) float64 {
 	const basicConfidence = 0.8
 	const capConfidence = basicConfidence - 0.2
 
 	last, _ := utf8.DecodeLastRuneInString(s)
 	if last == '.' || last == ':' || last == '!' || last == '\n' {
-		return false, basicConfidence
+		return basicConfidence
 	}
 
 	first, firstN := utf8.DecodeRuneInString(s)
 	if !unicode.IsUpper(first) {
-		return true, 0
+		return 0
 	}
 
 	// People use proper nouns and exported Go identifiers in error strings,
@@ -199,10 +199,10 @@ func lintErrorString(s string) (isClean bool, conf float64) {
 		}
 
 		if unicode.IsUpper(r) || unicode.IsDigit(r) {
-			return true, 0 // accept words with more than 2 capital letters or digits (e.g. GitHub, URLs, I2000)
+			return 0 // accept words with more than 2 capital letters or digits (e.g. GitHub, URLs, I2000)
 		}
 	}
 
 	// Flag strings starting with something that doesn't look like an initialism.
-	return false, capConfidence
+	return capConfidence
 }

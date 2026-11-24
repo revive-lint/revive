@@ -11,7 +11,8 @@ It parses Go source via `go/ast` (+ `go/types` for typed rules), runs a configur
 
 Top-level packages:
 
-- `cli/` — command-line entry point (`main.go` defers to `cli.RunRevive`).
+- `cli/` — command-line entry point (`main.go` defers to `cli.RunRevive`),
+  plus the end-to-end CLI tests (`e2e_test.go`, `package cli_test`) and their fixtures in `cli/testdata/`.
 - `lint/` — core linter engine, rule interfaces (`Rule`, `ConfigurableRule`), `File`, `Failure`, `Severity`, and the in-memory `Config` types.
 - `rule/` — one file per rule (100+ rules). Untyped rules also listed in `untyped.toml`.
 - `formatter/` — output formatters (default, json, sarif, stylish, friendly, …).
@@ -53,6 +54,20 @@ Run a single rule's tests:
 ```sh
 go test -run TestUnusedParam ./test/...
 ```
+
+Run the end-to-end CLI tests:
+
+```sh
+go test -run TestRevive ./cli/
+```
+
+These run revive as a subprocess, so they cover what unit tests cannot: exit codes, flag parsing, and output on stdout/stderr.
+
+- The test binary re-executes *itself* as revive: with `REVIVE_E2E_RUN_REVIVE=1` set it calls `RunRevive()` instead of running tests.
+- Fixtures live in `cli/testdata/` (`clean.go` has no failures, `bad.go` has two) and the subprocess runs in that directory.
+  `HOME`, `USERPROFILE` and `XDG_CONFIG_HOME` point at temp dirs, so a local `revive.toml` cannot change the result, and a
+  case can write its own config there with the `homeConfig` and `xdgConfig` fields to cover default config discovery.
+- To cover another flag, exit code, or config error, add a case to the table in `TestRevive` instead of a new test function.
 
 Logging during local runs: set `REVIVE_LOG_LEVEL` (`debug|info|warn|error`) — logs go to stderr. See [DEVELOPING.md](DEVELOPING.md#logging).
 
@@ -105,6 +120,8 @@ Line length in this and other Markdown files is capped at 150 characters (200 in
 - Don't introduce assertion libraries (`testify`, `gomega`, …) — the project uses the standard `testing` package by design.
 - Don't reformat or restructure files unrelated to the change. Keep diffs reviewable.
 - Don't edit generated TOCs in `README.md` / `RULES_DESCRIPTIONS.md` by hand.
+- Don't let `Configure` keep state from a previous call: rules are singletons and may be configured more than once,
+  so reset every configurable field to its default before reading the arguments, even on the empty-arguments early return.
 - Don't add a rule to `untyped.toml` unless you've verified it really doesn't touch type info —
   getting this wrong silently breaks the untyped fast path.
 

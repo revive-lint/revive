@@ -22,3 +22,11 @@ func BenchmarkArgumentsLimit(b *testing.B) {
 		testRule(b, "argument_limit_default", &rule.ArgumentsLimitRule{}, &lint.RuleConfig{})
 	}
 }
+
+func TestArgumentsLimitConfigureResetsPreviousOptions(t *testing.T) {
+	r := &rule.ArgumentsLimitRule{}
+	testRule(t, "argument_limit", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{int64(3)},
+	})
+	testRule(t, "argument_limit_default", r)
+}

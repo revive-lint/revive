@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"strings"
+	"go/types"
 
 	"github.com/mgechev/revive/internal/astutils"
 	"github.com/mgechev/revive/lint"
@@ -80,12 +80,10 @@ func (w *lintInefficientMapLookup) Visit(node ast.Node) ast.Visitor {
 //		}
 func (w *lintInefficientMapLookup) analyzeBlock(b *ast.BlockStmt) {
 	for _, stmt := range b.List {
-		if !w.isRangeOverMapKey(stmt) {
+		rangeOverMap, key := w.rangeOverMapKey(stmt)
+		if rangeOverMap == nil {
 			continue
 		}
-
-		rangeOverMap := stmt.(*ast.RangeStmt)
-		key := rangeOverMap.Key.(*ast.Ident)
 
 		// Here we have identified a range over the keys of a map
 		// Let's check if the range body is
@@ -149,15 +147,19 @@ func isKeyLookup(keyName string, blockStmt *ast.BlockStmt) bool {
 	return false
 }
 
-func (w *lintInefficientMapLookup) isRangeOverMapKey(stmt ast.Stmt) bool {
+// rangeOverMapKey returns the range statement and its key identifier when stmt
+// ranges over the keys of a map, and nil otherwise.
+func (w *lintInefficientMapLookup) rangeOverMapKey(stmt ast.Stmt) (*ast.RangeStmt, *ast.Ident) {
 	rangeStmt, ok := stmt.(*ast.RangeStmt)
 	if !ok {
-		return false // not a range
+		return nil, nil // not a range
 	}
 
-	// Check if we range on the key
-	if rangeStmt.Key == nil {
-		return false // no key in range
+	// Check if we range on the key, and that the key is a plain identifier:
+	// an assigning range like "for s.field = range aMap" has a non-identifier key.
+	key, ok := rangeStmt.Key.(*ast.Ident)
+	if !ok {
+		return nil, nil
 	}
 
 	// Check if we range only on key
@@ -165,10 +167,38 @@ func (w *lintInefficientMapLookup) isRangeOverMapKey(stmt ast.Stmt) bool {
 	// for key, _ := range ...
 	hasValueVariable := rangeStmt.Value != nil && !astutils.IsIdent(rangeStmt.Value, "_")
 	if hasValueVariable {
-		return false // range over both key and value
+		return nil, nil // range over both key and value
 	}
 
 	// Check if we range over a map
 	t := w.file.Pkg.TypeOf(rangeStmt.X)
-	return t != nil && strings.HasPrefix(t.String(), "map[")
+	if t == nil || !isMapType(t) {
+		return nil, nil
+	}
+
+	return rangeStmt, key
+}
+
+// isMapType reports whether t is a map type, including named and alias map types
+// and type parameters whose constraint only allows maps.
+func isMapType(t types.Type) bool {
+	switch u := t.Underlying().(type) {
+	case *types.Map:
+		return true
+	case *types.Interface:
+		// The underlying type of a type parameter is its constraint interface.
+		for embedded := range u.EmbeddedTypes() {
+			if isMapType(embedded) {
+				return true
+			}
+		}
+	case *types.Union:
+		for term := range u.Terms() {
+			if !isMapType(term.Type()) {
+				return false
+			}
+		}
+		return u.Len() > 0
+	}
+	return false
 }

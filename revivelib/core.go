@@ -10,9 +10,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mgechev/dots"
+	"github.com/revive-lint/dots"
 
 	"github.com/mgechev/revive/config"
+	"github.com/mgechev/revive/internal/timing"
 	"github.com/mgechev/revive/lint"
 	"github.com/mgechev/revive/logging"
 )
@@ -55,10 +56,13 @@ func New(
 		}
 	}
 
+	doneRules := timing.Track(logger, "rules-setup")
 	lintingRules, err := config.GetLintingRules(conf, extraRuleInstances)
 	if err != nil {
+		doneRules("error", err)
 		return nil, fmt.Errorf("initializing revive - getting lint rules: %w", err)
 	}
+	doneRules("rules", len(lintingRules))
 
 	logger.Info("Config loaded", "rules", slices.Collect(maps.Keys(conf.Rules)))
 
@@ -92,10 +96,13 @@ func (r *Revive) Lint(patterns ...*LintPattern) (<-chan lint.Failure, error) {
 		excludePatterns = []string{"vendor/..."}
 	}
 
+	donePackages := timing.Track(r.logger, "package-resolution")
 	packages, err := getPackages(includePatterns, excludePatterns)
 	if err != nil {
+		donePackages("error", err)
 		return nil, fmt.Errorf("linting - getting packages: %w", err)
 	}
+	donePackages("packages", len(packages), "files", timing.Value(func() any { return countFiles(packages) }))
 
 	revive := lint.New(func(file string) ([]byte, error) {
 		contents, err := os.ReadFile(file) //nolint:gosec // ignore G304: potential file inclusion via variable
@@ -119,8 +126,10 @@ func (r *Revive) Lint(patterns ...*LintPattern) (<-chan lint.Failure, error) {
 func (r *Revive) Format(
 	formatterName string,
 	failuresChan <-chan lint.Failure,
-) (output string, exitCode int, err error) {
+) (output string, exitCode int, err error) { //nolint:nonamedreturns // named return values are used for clarity
 	conf := r.config
+	reportedFailures := 0
+
 	formatChan := make(chan lint.Failure)
 	exitChan := make(chan bool)
 
@@ -153,11 +162,16 @@ func (r *Revive) Format(
 			exitCode = conf.ErrorCode
 		}
 
+		reportedFailures++
 		formatChan <- failure
 	}
 
+	// The formatter runs concurrently with linting, draining failuresChan above is what drives it:
+	// measure only the work left once every failure has been delivered.
+	doneFormat := timing.Track(r.logger, "format", "formatter", formatter.Name())
 	close(formatChan)
 	<-exitChan
+	doneFormat("failures", reportedFailures)
 
 	if formatErr != nil {
 		return "", exitCode, fmt.Errorf("formatting: %w", formatErr)
@@ -178,6 +192,14 @@ func getPackages(includePatterns []string, excludePatterns ArrayFlags) ([][]stri
 	}
 
 	return packages, nil
+}
+
+func countFiles(packages [][]string) int {
+	count := 0
+	for _, files := range packages {
+		count += len(files)
+	}
+	return count
 }
 
 func normalizeSplit(strs []string) []string {

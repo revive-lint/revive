@@ -93,7 +93,7 @@ func (w lintUseSlicesConcat) addFailure(node ast.Node, msg string) {
 
 // appendToEmptySliceTarget returns the name of the variable defined by a
 // s := append([]T{}, s1...) statement, if the statement is of that form.
-func appendToEmptySliceTarget(stmt ast.Stmt) (name string, ok bool) {
+func appendToEmptySliceTarget(stmt ast.Stmt) (string, bool) {
 	assign, ok := stmt.(*ast.AssignStmt)
 	if !ok || assign.Tok != token.DEFINE || len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
 		return "", false

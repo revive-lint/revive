@@ -1,7 +1,6 @@
 package rule
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -9,6 +8,12 @@ import (
 	"strings"
 
 	"github.com/mgechev/revive/lint"
+)
+
+const (
+	defaultFileLengthLimit               = 0     // thus the rule is disabled
+	defaultFileLengthLimitSkipComments   = false // thus comment lines are counted
+	defaultFileLengthLimitSkipBlankLines = false // thus blank lines are counted
 )
 
 // FileLengthLimitRule lints the number of lines in a file.
@@ -30,16 +35,11 @@ func (r *FileLengthLimitRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 
 	all := 0
 	blank := 0
-	scanner := bufio.NewScanner(bytes.NewReader(file.Content()))
-	for scanner.Scan() {
+	for line := range bytes.Lines(file.Content()) {
 		all++
-		if len(bytes.TrimSpace(scanner.Bytes())) == 0 {
+		if len(bytes.TrimSpace(line)) == 0 {
 			blank++
 		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return newInternalFailureError(err)
 	}
 
 	lines := all
@@ -76,6 +76,10 @@ var _ lint.ConfigurableRule = (*FileLengthLimitRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *FileLengthLimitRule) Configure(arguments lint.Arguments) error {
+	r.max = defaultFileLengthLimit
+	r.skipComments = defaultFileLengthLimitSkipComments
+	r.skipBlankLines = defaultFileLengthLimitSkipBlankLines
+
 	if len(arguments) < 1 {
 		return nil // use default
 	}

@@ -21,6 +21,7 @@ var _ lint.ConfigurableRule = (*BannedCharsRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *BannedCharsRule) Configure(arguments lint.Arguments) error {
+	r.bannedCharList = nil
 	if len(arguments) > 0 {
 		list, err := r.getBannedCharsList(arguments)
 		if err != nil {

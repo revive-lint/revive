@@ -186,3 +186,58 @@ func TestLint_disableDirectives(t *testing.T) {
 		})
 	}
 }
+
+// typeCheckRule triggers the type check of the package, as typed rules do.
+type typeCheckRule struct{}
+
+func (typeCheckRule) Name() string { return "type-check-rule" }
+
+func (typeCheckRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+	_ = file.Pkg.TypeCheck()
+	return nil
+}
+
+func TestLint_timingLogs(t *testing.T) {
+	src := "package foo\n\nfunc Foo() {}\n"
+	rules := []lint.Rule{
+		&fakeRule{name: "rule1", failures: []lint.Failure{{Confidence: 1, Failure: "failure"}}},
+		typeCheckRule{},
+	}
+
+	t.Run("debug level reports every phase", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+		lintFile(t, "test.go", src, rules, lint.Config{}, logger)
+
+		got := buf.String()
+		want := []string{
+			"phase=go-version-detection",
+			"phase=package-read-parse",
+			"phase=package-lint",
+			"phase=scan-sortable",
+			"phase=type-check",
+			"phase=disabled-intervals",
+			"phase=file-lint",
+			"phase=lint",
+			`msg="rule timing" rule=rule1`,
+			`msg="rule timing" rule=type-check-rule`,
+		}
+		for _, w := range want {
+			if !strings.Contains(got, w) {
+				t.Errorf("logs do not contain %q:\n%s", w, got)
+			}
+		}
+	})
+
+	t.Run("no timing logs above debug level", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+		lintFile(t, "test.go", src, rules, lint.Config{}, logger)
+
+		if got := buf.String(); got != "" {
+			t.Errorf("expected no output, got %q", got)
+		}
+	})
+}

@@ -1,13 +1,11 @@
 package rule
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
 	"go/token"
 	"regexp"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/mgechev/revive/lint"
@@ -137,19 +135,16 @@ type lintLineLengthNum struct {
 }
 
 func (r lintLineLengthNum) check() {
-	f := bytes.NewReader(r.file.Content())
-	spaces := strings.Repeat(" ", 4) // tab width = 4
+	const tabWidth = 4
 	l := 1
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		t := s.Text()
+	for line := range bytes.Lines(r.file.Content()) {
+		t := bytes.TrimSuffix(bytes.TrimSuffix(line, []byte{'\n'}), []byte{'\r'})
 		if r.isExcluded(t) {
 			l++
 			continue
 		}
 
-		t = strings.ReplaceAll(t, "\t", spaces)
-		c := utf8.RuneCountInString(t)
+		c := utf8.RuneCount(t) + (tabWidth-1)*bytes.Count(t, []byte{'\t'})
 		if c > r.max {
 			r.onFailure(lint.Failure{
 				Category: lint.FailureCategoryStyle,
@@ -175,9 +170,9 @@ func (r lintLineLengthNum) check() {
 }
 
 // isExcluded reports whether the raw line matches any of the configured exclude patterns.
-func (r lintLineLengthNum) isExcluded(line string) bool {
+func (r lintLineLengthNum) isExcluded(line []byte) bool {
 	for _, exclude := range r.excludes {
-		if exclude.MatchString(line) {
+		if exclude.Match(line) {
 			return true
 		}
 	}

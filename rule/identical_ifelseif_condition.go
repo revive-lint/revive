@@ -90,7 +90,7 @@ type lintIfChainIdenticalConditions struct {
 
 // addCondition adds a condition to the set of if...else if conditions.
 // If the set already contains the same condition it returns the line number of the identical condition.
-func (w *lintIfChainIdenticalConditions) addCondition(condition ast.Expr, conditionLine int) (line int, match bool) {
+func (w *lintIfChainIdenticalConditions) addCondition(condition ast.Expr, conditionLine int) (int, bool) {
 	if condition == nil {
 		return 0, false
 	}

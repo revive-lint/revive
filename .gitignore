@@ -4,3 +4,4 @@ vendor
 *.swp
 dist/
 *.log
+node_modules/

@@ -50,9 +50,10 @@ func (*GetReturnRule) Name() string {
 	return "get-return"
 }
 
-const getterPrefix = "GET"
-
-var lenGetterPrefix = len(getterPrefix)
+const (
+	getterPrefix    = "GET"
+	lenGetterPrefix = len(getterPrefix)
+)
 
 func isGetter(name string) bool {
 	nameHasGetterPrefix := strings.HasPrefix(strings.ToUpper(name), getterPrefix)

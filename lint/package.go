@@ -6,12 +6,14 @@ import (
 	"go/importer"
 	"go/token"
 	"go/types"
+	"log/slog"
 	"sync"
 
 	goversion "github.com/hashicorp/go-version"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mgechev/revive/internal/astutils"
+	"github.com/mgechev/revive/internal/timing"
 	"github.com/mgechev/revive/internal/typeparams"
 )
 
@@ -28,12 +30,16 @@ type Package struct {
 	sortable map[string]bool
 	// main is whether this is a "main" package.
 	main int
+
+	logger *slog.Logger
 }
 
-var (
+const (
 	trueValue  = 1
 	falseValue = 2
+)
 
+var (
 	// Go111 is a constant representing the Go version 1.11.
 	Go111 = goversion.Must(goversion.NewVersion("1.11"))
 	// Go115 is a constant representing the Go version 1.15.
@@ -107,6 +113,14 @@ func (p *Package) Sortable() map[string]bool {
 
 // TypeCheck performs type checking for given package.
 func (p *Package) TypeCheck() error {
+	// Deferred before the unlock to log once p.mu is released: rules waiting for it must not also wait for the log output.
+	var logTiming func()
+	defer func() {
+		if logTiming != nil {
+			logTiming()
+		}
+	}()
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -121,10 +135,11 @@ func (p *Package) TypeCheck() error {
 		Importer: importer.Default(),
 	}
 	info := &types.Info{
-		Types:  map[ast.Expr]types.TypeAndValue{},
-		Defs:   map[*ast.Ident]types.Object{},
-		Uses:   map[*ast.Ident]types.Object{},
-		Scopes: map[ast.Node]*types.Scope{},
+		Types:      map[ast.Expr]types.TypeAndValue{},
+		Defs:       map[*ast.Ident]types.Object{},
+		Uses:       map[*ast.Ident]types.Object{},
+		Scopes:     map[ast.Node]*types.Scope{},
+		Selections: map[*ast.SelectorExpr]*types.Selection{},
 	}
 	var anyFile *File
 	var astFiles []*ast.File
@@ -138,7 +153,11 @@ func (p *Package) TypeCheck() error {
 		return errors.New("no ast.File found")
 	}
 
-	typesPkg, err := check(config, anyFile.AST.Name.Name, p.fset, astFiles, info)
+	done := timing.Track(p.logger, "type-check")
+	typesPkg, err := config.Check(anyFile.AST.Name.Name, p.fset, astFiles, info)
+	if timing.Enabled(p.logger) {
+		logTiming = func() { done("package", anyFile.AST.Name.Name, "files", len(astFiles), "error", err) }
+	}
 
 	// Remember the typechecking info, even if config.Check failed,
 	// since we will get partial information.
@@ -146,20 +165,6 @@ func (p *Package) TypeCheck() error {
 	p.typesInfo = info
 
 	return err
-}
-
-// check function encapsulates the call to [go/types.Config.Check] method and
-// recovers if the called method panics (see issue #59).
-func check(config *types.Config, n string, fset *token.FileSet, astFiles []*ast.File, info *types.Info) (p *types.Package, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err, _ = r.(error)
-			p = nil
-			return
-		}
-	}()
-
-	return config.Check(n, fset, astFiles, info)
 }
 
 // TypeOf returns the type of expression.
@@ -183,7 +188,8 @@ const (
 	bfSwap
 )
 
-func (p *Package) scanSortable() {
+// scanSortable collects the sortable types of the package and returns their number.
+func (p *Package) scanSortable() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -207,10 +213,16 @@ func (p *Package) scanSortable() {
 			p.sortable[typ] = true
 		}
 	}
+	return len(p.sortable)
 }
 
 func (p *Package) lint(rules []Rule, config Config, failures chan Failure) error {
-	p.scanSortable()
+	doneSortable := timing.Track(p.logger, "scan-sortable")
+	sortable := p.scanSortable()
+	if timing.Enabled(p.logger) {
+		doneSortable("sortable", sortable)
+	}
+
 	var eg errgroup.Group
 	for _, file := range p.Files() {
 		eg.Go(func() error {

@@ -22,3 +22,11 @@ func TestEnforceMapStyle_literal(t *testing.T) {
 		Arguments: lint.Arguments{"literal"},
 	})
 }
+
+func TestEnforceMapStyleConfigureResetsPreviousOptions(t *testing.T) {
+	r := &rule.EnforceMapStyleRule{}
+	testRule(t, "enforce_map_style_make", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{"make"},
+	})
+	testRule(t, "enforce_map_style_any", r)
+}

@@ -90,7 +90,8 @@ func (w lintUnnecessaryStmtRule) checkSwitchBody(b *ast.BlockStmt) {
 		return
 	}
 
-	if len(cc.List) > 1 { // skip cases with multiple expressions
+	// skip default-only switches (unconditional) and cases with multiple expressions
+	if len(cc.List) != 1 {
 		return
 	}
 

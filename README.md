@@ -3,6 +3,8 @@
 [![Build Status](https://github.com/revive-lint/revive/actions/workflows/test.yaml/badge.svg)](https://github.com/revive-lint/revive/actions/workflows/test.yaml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mgechev/revive.svg)](https://pkg.go.dev/github.com/mgechev/revive)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/revive-lint/revive)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15967/badge)](https://www.bestpractices.dev/projects/15967)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/revive-lint/revive/badge)](https://scorecard.dev/viewer/?uri=github.com/revive-lint/revive)
 
 Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
 **`Revive` provides a framework for development of custom rules,
@@ -120,18 +122,8 @@ go install github.com/mgechev/revive@HEAD
 You can run `revive` using Docker to avoid installing it directly on your system:
 
 ```bash
-docker run -v "$(pwd)":/var/YOUR_REPOSITORY ghcr.io/mgechev/revive:v1.16.0 -config /var/YOUR_REPOSITORY/revive.toml -formatter stylish ./var/YOUR_REPOSITORY/...
+docker run --rm -v "$(pwd)":/app -w /app ghcr.io/revive-lint/revive:latest -config /app/revive.toml -formatter stylish ./...
 ```
-
-_Note_: Replace `YOUR_REPOSITORY` with the path to your repository.
-
-A volume must be mounted to share the current repository with the container.
-For more details, refer to the [bind mounts Docker documentation](https://docs.docker.com/storage/bind-mounts/).
-
-- `-v`: Mounts the current directory (`$(pwd)`) to `/var/YOUR_REPOSITORY` inside the container.
-- `ghcr.io/mgechev/revive:v1.16.0`: Specifies the Docker image and its version.
-- `revive`: The command to run inside the container.
-- Flags like `-config` and `-formatter` are the same as when using the binary directly.
 
 _Note_: images up to and including `v1.16.0` are published at `ghcr.io/mgechev/revive`.
 Later releases are published at `ghcr.io/revive-lint/revive`.
@@ -587,7 +579,7 @@ List of all [available rules](./RULES_DESCRIPTIONS.md).
 | [`range`](./RULES_DESCRIPTIONS.md#range)               |  n/a   | Prevents redundant variables when iterating over a collection.   | 1.0 | [v1.0.0](https://github.com/revive-lint/revive/releases/tag/v1.0.0) |   yes    |  no   |
 | [`receiver-naming`](./RULES_DESCRIPTIONS.md#receiver-naming)     |  map (optional)   | Conventions around the naming of receivers.                      | 1.0 | [v1.0.0](https://github.com/revive-lint/revive/releases/tag/v1.0.0) |   yes    |  no   |
 | [`redefines-builtin-id`](./RULES_DESCRIPTIONS.md#redefines-builtin-id)|  n/a   | Warns on redefinitions of builtin identifiers                    | 1.0 | [v1.0.0](https://github.com/revive-lint/revive/releases/tag/v1.0.0) |    no    |  no   |
-| [`redundant-build-tag`](./RULES_DESCRIPTIONS.md#redundant-build-tag) | n/a   | Warns about redundant `// +build` comment lines | >= 1.17 | [v1.6.0](https://github.com/revive-lint/revive/releases/tag/v1.6.0) |   no    |  no   |
+| [`redundant-build-tag`](./RULES_DESCRIPTIONS.md#redundant-build-tag) | n/a   | Warns about build tags that are redundant: a `// +build` line, a `go1.X` constraint already guaranteed by go.mod, or a constraint implied by the file name | >= 1.17 | [v1.6.0](https://github.com/revive-lint/revive/releases/tag/v1.6.0) |   no    |  no   |
 | [`redundant-import-alias`](./RULES_DESCRIPTIONS.md#redundant-import-alias)          |  n/a   |  Warns on import aliases matching the imported package name | 1.0 | [v1.3.3](https://github.com/revive-lint/revive/releases/tag/v1.3.3) |    no    |  no   |
 | [`redundant-test-main-exit`](./RULES_DESCRIPTIONS.md#redundant-test-main-exit) |  n/a   | Suggests removing `Exit` call in `TestMain` function for test files | >= 1.15 | [v1.6.1](https://github.com/revive-lint/revive/releases/tag/v1.6.1) |    no    |  no   |
 | [`string-format`](./RULES_DESCRIPTIONS.md#string-format)          |  map   | Warns on specific string literals that fail one or more user-configured regular expressions            | 1.0 | [v1.0.7](https://github.com/revive-lint/revive/releases/tag/v1.0.7) |    no    |  no   |
@@ -612,6 +604,7 @@ List of all [available rules](./RULES_DESCRIPTIONS.md).
 | [`use-any`](./RULES_DESCRIPTIONS.md#use-any)          |  n/a   |  Proposes to replace `interface{}` with its alias `any` | >= 1.18 | [v1.2.0](https://github.com/revive-lint/revive/releases/tag/v1.2.0) |    no    |  no   |
 | [`use-errors-new`](./RULES_DESCRIPTIONS.md#use-errors-new) | n/a   | Spots calls to `fmt.Errorf` that can be replaced by `errors.New` | < 1.26 | [v1.6.0](https://github.com/revive-lint/revive/releases/tag/v1.6.0) |   no    |  no   |
 | [`use-fmt-print`](./RULES_DESCRIPTIONS.md#use-fmt-print) | n/a   | Proposes to replace calls to built-in `print` and `println` with their equivalents from `fmt`. | 1.0 | [v1.10.0](https://github.com/revive-lint/revive/releases/tag/v1.10.0) |   no    |  no   |
+| [`use-new`](./RULES_DESCRIPTIONS.md#use-new) | n/a   | Proposes to replace a variable declared just to take its address with a call to `new`. | >= 1.26 | [v1.18.0](https://github.com/revive-lint/revive/releases/tag/v1.18.0) |   no    |  no   |
 | [`use-slices-concat`](./RULES_DESCRIPTIONS.md#use-slices-concat) | n/a   | Proposes to replace appends to an empty slice with a call to `slices.Concat`. | >= 1.22 | [v1.17.0](https://github.com/revive-lint/revive/releases/tag/v1.17.0) |   no    |  no   |
 | [`use-slices-sort`](./RULES_DESCRIPTIONS.md#use-slices-sort) | n/a   | Proposes to replace calls to `sort.Ints`, `sort.Strings` and the like with their equivalents from `slices` package. | >= 1.21 | [v1.14.0](https://github.com/revive-lint/revive/releases/tag/v1.14.0) |   no    |  no   |
 | [`use-waitgroup-go`](./RULES_DESCRIPTIONS.md#use-waitgroup-go)          |  n/a   |  Proposes to replace `wg.Add ... go {... wg.Done ...}` idiom with `wg.Go` | >= 1.25 | [v1.12.0](https://github.com/revive-lint/revive/releases/tag/v1.12.0) |    no    |  no   |
@@ -723,7 +716,7 @@ func (f myRule) Name() string {
 	return "myRule"
 }
 
-func (f myRule) Apply(*lint.File, lint.Arguments) []lint.Failure {
+func (f myRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
 	// ...
 }
 ```
@@ -893,9 +886,11 @@ _Open a PR to add your project_.
 
 ### Maintainers
 
-| [<img alt="mgechev" src="https://avatars.githubusercontent.com/u/455023?v=4&s=100" width="100">](https://github.com/mgechev) | [<img alt="chavacava" src="https://avatars.githubusercontent.com/u/25788468?v=4&s=100" width="100">](https://github.com/chavacava) | [<img alt="denisvmedia" src="https://avatars.githubusercontent.com/u/5462781?v=4&s=100" width="100">](https://github.com/denisvmedia) | [<img alt="alexandear" src="https://avatars.githubusercontent.com/u/3228886?v=4&s=100" width="100">](https://github.com/alexandear) |
-|---|---|---|---|
-| [mgechev](https://github.com/mgechev) | [chavacava](https://github.com/chavacava) | [denisvmedia](https://github.com/denisvmedia) | [alexandear](https://github.com/alexandear) |
+| [<img alt="alexandear" src="https://avatars.githubusercontent.com/u/3228886?v=4&s=100" width="100">](https://github.com/alexandear) | [<img alt="chavacava" src="https://avatars.githubusercontent.com/u/25788468?v=4&s=100" width="100">](https://github.com/chavacava) | [<img alt="denisvmedia" src="https://avatars.githubusercontent.com/u/5462781?v=4&s=100" width="100">](https://github.com/denisvmedia) |
+|---|---|---|
+| [alexandear](https://github.com/alexandear) | [chavacava](https://github.com/chavacava) | [denisvmedia](https://github.com/denisvmedia) |
+
+Revive was created by [mgechev](https://github.com/mgechev).
 
 ### All
 

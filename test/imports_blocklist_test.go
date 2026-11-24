@@ -26,3 +26,11 @@ func BenchmarkImportsBlocklist(b *testing.B) {
 		})
 	}
 }
+
+func TestImportsBlocklistConfigureResetsPreviousOptions(t *testing.T) {
+	r := &rule.ImportsBlocklistRule{}
+	testRule(t, "imports_blocklist_original", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{"crypto/md5", "crypto/sha1"},
+	})
+	testRule(t, "imports_blocklist_default", r)
+}

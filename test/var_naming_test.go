@@ -30,7 +30,7 @@ func TestVarNaming(t *testing.T) {
 	testRule(t, "var_naming_allowlist_blocklist_skip_initialism_name_checks", &rule.VarNamingRule{}, &lint.RuleConfig{
 		Arguments: lint.Arguments{
 			[]any{"ID"},
-			[]any{"VM"},
+			[]any{"GRPC"},
 			[]any{map[string]any{"skip-initialism-name-checks": true}},
 		},
 	})
@@ -43,6 +43,18 @@ func TestVarNaming(t *testing.T) {
 			Arguments: lint.Arguments{[]any{}, []any{}, []any{map[string]any{key: true}}},
 		})
 	}
+}
+
+func TestVarNamingConfigureResetsPreviousConfiguration(t *testing.T) {
+	r := &rule.VarNamingRule{}
+	testRule(t, "var_naming_config_reset", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{
+			[]any{"ID"},
+			[]any{"GRPC"},
+			[]any{map[string]any{"skipInitialismNameChecks": true, "upperCaseConst": true}},
+		},
+	})
+	testRule(t, "var_naming_config_reset_default", r)
 }
 
 func BenchmarkUpperCaseConstTrue(b *testing.B) {

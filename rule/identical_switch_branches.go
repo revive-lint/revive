@@ -20,6 +20,8 @@ var _ lint.ConfigurableRule = (*IdenticalSwitchBranchesRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *IdenticalSwitchBranchesRule) Configure(arguments lint.Arguments) error {
+	r.allowIdenticalDefault = false
+
 	if len(arguments) < 1 {
 		return nil // use defaults
 	}
@@ -109,7 +111,11 @@ func (w *lintIdenticalSwitchBranches) Visit(node ast.Node) ast.Visitor {
 
 	hashes := map[string]int{} // map hash(branch code) -> branch line
 	for _, cc := range switchStmt.Body.List {
-		caseClause := cc.(*ast.CaseClause)
+		caseClause, ok := cc.(*ast.CaseClause)
+		if !ok {
+			continue
+		}
+
 		if doesFallthrough(caseClause.Body) {
 			continue // skip fallthrough branches
 		}

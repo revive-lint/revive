@@ -55,7 +55,11 @@ func (w *lintUselessFallthrough) Visit(node ast.Node) ast.Visitor {
 
 	casesCount := len(switchStmt.Body.List)
 	for i := range casesCount - 1 {
-		caseClause := switchStmt.Body.List[i].(*ast.CaseClause)
+		caseClause, ok := switchStmt.Body.List[i].(*ast.CaseClause)
+		if !ok {
+			continue
+		}
+
 		caseBody := caseClause.Body
 
 		if len(caseBody) != 1 {
@@ -67,12 +71,18 @@ func (w *lintUselessFallthrough) Visit(node ast.Node) ast.Visitor {
 			continue // not a fallthrough
 		}
 
-		confidence := 1.0
-		if nextCaseClause := switchStmt.Body.List[i+1].(*ast.CaseClause); nextCaseClause.List == nil {
+		nextCaseClause, ok := switchStmt.Body.List[i+1].(*ast.CaseClause)
+		if !ok {
+			continue
+		}
+
+		if nextCaseClause.List == nil {
 			// The next clause is 'default:', and this is a valid pattern.
 			// Skip reporting this fallthrough.
 			continue
 		}
+
+		confidence := 1.0
 		if _, ok := w.commentsMap[branchStmt]; ok {
 			// The fallthrough has a comment, report with lower confidence.
 			confidence = 0.5
