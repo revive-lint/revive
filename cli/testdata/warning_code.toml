@@ -1,0 +1,4 @@
+# Failures with the default (warning) severity exit with warning-code.
+warning-code = 3
+
+[rule.exported]

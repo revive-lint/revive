@@ -102,6 +102,7 @@ List of all available rules.
 - [use-any](#use-any)
 - [use-errors-new](#use-errors-new)
 - [use-fmt-print](#use-fmt-print)
+- [use-new](#use-new)
 - [use-slices-concat](#use-slices-concat)
 - [use-slices-sort](#use-slices-sort)
 - [use-waitgroup-go](#use-waitgroup-go)
@@ -494,6 +495,7 @@ _Description_: This rule warns on some common mistakes when using `defer` statem
 | name              | description                                                                                                                                                                                     |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | call-chain        | even if deferring call-chains of the form `foo()()` is valid, it does not help code understanding (only the last call is deferred)                                                             |
+| exit-after-defer  | calling `os.Exit`, `log.Fatal` or another function that exits the program after a `defer` statement prevents the deferred calls from running                                                    |
 | loop              | deferring inside loops can be misleading (deferred functions are not executed at the end of the loop iteration but of the current function) and it could lead to exhausting the execution stack |
 | method-call       | deferring a call to a method can lead to subtle bugs if the method does not have a pointer receiver                                                                                             |
 | recover           | calling `recover` outside a deferred function has no effect                                                                                                                                     |
@@ -1930,7 +1932,9 @@ Default behavior excludes paths containing `testdata`
 [rule.package-directory-mismatch]
 ```
 
-Ignore specific directories with `ignore-directories`
+Ignore specific directories with `ignore-directories`.
+Entries match whole directory names at any level, such as `testinfo` or `internal/gen`:
+entry `target` ignores `target/` and `a/target/b/`, but not `targeted/` or `mytarget/`.
 
 ```toml
 [rule.package-directory-mismatch]
@@ -2075,6 +2079,8 @@ _Description_: This rule warns about redundant [build tag comments](https://pkg.
 It detects unnecessary `// +build` comments when `//go:build` is present.
 `gofmt` in Go 1.17+ automatically adds the `//go:build` constraint, making the `// +build` comment unnecessary.
 Also, the rule spots redundant build tags `//go:build go1.X` when the package's Go language version is greater than or equal to `go1.X`.
+Finally, it spots `//go:build` constraints that are already implied by the `GOOS`/`GOARCH` suffix of the file name,
+e.g. `//go:build windows` in a file named `example_windows.go`.
 
 ### Examples (redundant-build-tag)
 
@@ -2112,6 +2118,24 @@ After (fixed):
 ```go
 package example
 ```
+
+Redundant build tag implied by the file name, in `example_windows.go`:
+
+Before (violation):
+
+```go
+//go:build windows
+
+package example
+```
+
+After (fixed):
+
+```go
+package example
+```
+
+A build tag only partly implied by the file name is reported as well (e.g. `//go:build windows && cgo` reduces to `//go:build cgo`).
 
 _Configuration_: N/A
 
@@ -2755,6 +2779,41 @@ _Description_: This rule proposes to replace calls to built-in `print` and `prin
 [language bootstrapping and are not guaranteed to stay in the language](https://go.dev/ref/spec#Bootstrapping).
 
 _Configuration_: N/A
+
+## use-new
+
+_Go version_: >= 1.26.
+
+_Revive version_: [v1.18.0](https://github.com/revive-lint/revive/releases/tag/v1.18.0).
+
+_Description_: Since Go 1.26 the `new` built-in function accepts a value: `new(expr)` allocates a variable initialized with `expr`
+and yields its address.
+The rule proposes to replace a variable declared just to take its address, which does the same in a more convoluted way,
+with a call to `new`.
+
+### Examples (use-new)
+
+Before (violation):
+
+```go
+timeout := float64(*seconds)
+configTimeout := &timeout
+
+count := 42
+return &count
+```
+
+After (fixed):
+
+```go
+configTimeout := new(float64(*seconds))
+
+return new(42)
+```
+
+_Configuration_: N/A
+
+_Note_: This rule is irrelevant for Go 1.25-.
 
 ## use-slices-concat
 

@@ -11,6 +11,10 @@ func TestAddConstantWithDefaultArguments(t *testing.T) {
 	testRule(t, "add_constant_default", &rule.AddConstantRule{}, &lint.RuleConfig{})
 }
 
+func TestAddConstantNestedCallExpression(t *testing.T) {
+	testRule(t, "add_constant_nested_call", &rule.AddConstantRule{}, &lint.RuleConfig{})
+}
+
 func TestAddConstantWithArguments(t *testing.T) {
 	testRule(t, "add_constant", &rule.AddConstantRule{}, &lint.RuleConfig{
 		Arguments: lint.Arguments{map[string]any{
@@ -30,4 +34,12 @@ func TestAddConstantWithArguments(t *testing.T) {
 			"ignore-funcs":  `os\.(CreateFile|WriteFile|Chmod|FindProcess),\.Println,ignoredFunc,\.Info`,
 		}},
 	})
+}
+
+func TestAddConstantConfigureResetsIgnoredFunctions(t *testing.T) {
+	r := &rule.AddConstantRule{}
+	testRule(t, "add_constant_config_reset", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{map[string]any{"ignoreFuncs": `fmt\.Print`}},
+	})
+	testRule(t, "add_constant_config_reset_ok", r)
 }

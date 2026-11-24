@@ -16,3 +16,11 @@ func TestMaxPublicStructs(t *testing.T) {
 func TestMaxPublicStructsDefaultConfig(t *testing.T) {
 	testRule(t, "max_public_structs_ok", &rule.MaxPublicStructsRule{}, &lint.RuleConfig{})
 }
+
+func TestMaxPublicStructsConfigureResetsPreviousOptions(t *testing.T) {
+	r := &rule.MaxPublicStructsRule{}
+	testRule(t, "max_public_structs", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{int64(1)},
+	})
+	testRule(t, "max_public_structs_ok", r)
+}

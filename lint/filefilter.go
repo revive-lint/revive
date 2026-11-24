@@ -56,10 +56,7 @@ func (ff *FileFilter) MatchFileName(name string) bool {
 	return ff.rx.MatchString(name)
 }
 
-var (
-	fileFilterInvalidGlobRegexp = regexp.MustCompile(`[^/]\*\*[^/]`)
-	escapeRegexSymbols          = ".+{}()[]^$"
-)
+var fileFilterInvalidGlobRegexp = regexp.MustCompile(`[^/]\*\*[^/]`)
 
 func (ff *FileFilter) prepareRegexp() error {
 	var err error
@@ -74,6 +71,7 @@ func (ff *FileFilter) prepareRegexp() error {
 		}
 		return nil
 	}
+	src = strings.ReplaceAll(src, "\\", "/")
 	/* globs */
 	if strings.Contains(src, "*") {
 		if fileFilterInvalidGlobRegexp.MatchString(src) {
@@ -98,10 +96,7 @@ func (ff *FileFilter) prepareRegexp() error {
 				rxBuild.WriteString("[^/]*")
 				wasStar = false
 			}
-			if strings.ContainsRune(escapeRegexSymbols, c) {
-				rxBuild.WriteByte('\\')
-			}
-			rxBuild.WriteRune(c)
+			rxBuild.WriteString(regexp.QuoteMeta(string(c)))
 			if c == '/' && justDirGlob {
 				rxBuild.WriteRune('?')
 			}
@@ -118,12 +113,8 @@ func (ff *FileFilter) prepareRegexp() error {
 		return nil
 	}
 
-	// it's whole file mask, just escape dots and normalize separators
-	fillRx := src
-	fillRx = strings.ReplaceAll(fillRx, "\\", "/")
-	fillRx = strings.ReplaceAll(fillRx, ".", `\.`)
-	fillRx = "^" + fillRx + "$"
-	ff.rx, err = regexp.Compile(fillRx)
+	// it's whole file mask: match it literally
+	ff.rx, err = regexp.Compile("^" + regexp.QuoteMeta(src) + "$")
 	if err != nil {
 		return fmt.Errorf("invalid file filter [%s], regexp compile full path: [%w]", ff.raw, err)
 	}

@@ -78,4 +78,10 @@ func unnecessaryFormat(t *testing.T, b *testing.B, f *testing.F) {
 		format`)
 	fmt.Appendf(nil, `format 
 	%d`, 0)
+
+	// test with directives spelled as escape sequences
+	fmt.Sprintf("\x25d", 0)
+	fmt.Sprintf("\u0025d", 0)
+	fmt.Sprintf("\045d", 0)
+	fmt.Sprintf("\x6eo format") // MATCH /unnecessary use of formatting function "fmt.Sprintf", you can replace it with "fmt.Sprint" or just the string itself"/
 }

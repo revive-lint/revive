@@ -606,6 +606,7 @@ Warnings:
     {
       "results": [
         {
+          "level": "warning",
           "locations": [
             {
               "physicalLocation": {
@@ -670,6 +671,13 @@ Warnings:
           "informationUri": "https://revive.run",
           "name": "revive",
           "rules": [
+            {
+              "helpUri": "https://revive.run/r#error-naming",
+              "id": "error-naming",
+              "properties": {
+                "severity": "warning"
+              }
+            },
             {
               "helpUri": "https://revive.run/r#use-errors-new",
               "id": "use-errors-new",
@@ -890,6 +898,9 @@ file.go
 			output, err := td.formatter.Format(failures, lint.Config{
 				Confidence: 0.8,
 				Rules: lint.RulesConfig{
+					"error-naming": lint.RuleConfig{
+						Severity: lint.SeverityWarning,
+					},
 					"use-errors-new": lint.RuleConfig{
 						Severity: lint.SeverityError,
 					},

@@ -161,3 +161,107 @@ func rangeValAddress15() {
 		m = append(m, v{id: &value}) // MATCH /suspicious assignment of 'value'. range-loop variables always have the same address/
 	}
 }
+
+func rangeValAddressNestedField() {
+	type nested struct {
+		field struct {
+			value string
+		}
+	}
+
+	var pointers []*string
+	for _, value := range []nested{{}} {
+		pointers = append(pointers, &value.field.value) // MATCH /suspicious assignment of 'value'. range-loop variables always have the same address/
+	}
+}
+
+func rangeValAddressNestedPointerField() {
+	type inner struct {
+		value string
+	}
+	type outer struct {
+		p *inner
+	}
+
+	var pointers []*string
+	for _, value := range []outer{{p: &inner{}}} {
+		pointers = append(pointers, &value.p.value)
+	}
+}
+
+func rangeValAddressEmbeddedPointerField() {
+	type inner struct {
+		value string
+	}
+	type outer struct {
+		*inner
+	}
+
+	var pointers []*string
+	for _, value := range []outer{{&inner{}}} {
+		pointers = append(pointers, &value.value)
+	}
+}
+
+func rangeValAddressEmbeddedField() {
+	type inner struct {
+		value string
+	}
+	type outer struct {
+		inner
+	}
+
+	var pointers []*string
+	for _, value := range []outer{{}} {
+		pointers = append(pointers, &value.value) // MATCH /suspicious assignment of 'value'. range-loop variables always have the same address/
+	}
+}
+
+type rangeValAddressItem struct {
+	id string
+}
+
+type rangeValAddressItemPtr *rangeValAddressItem
+
+func rangeValAddressNamedPointer() {
+	var pointers []*string
+	for _, value := range []rangeValAddressItemPtr{&rangeValAddressItem{}} {
+		pointers = append(pointers, &value.id)
+	}
+}
+
+func rangeValAddressArrayField() {
+	type outer struct {
+		arr   [2]string
+		slice []string
+	}
+
+	var pointers []*string
+	for _, value := range []outer{{slice: []string{"A"}}} {
+		pointers = append(pointers, &value.arr[0])   // MATCH /suspicious assignment of 'value'. range-loop variables always have the same address/
+		pointers = append(pointers, &(value).arr[1]) // MATCH /suspicious assignment of 'value'. range-loop variables always have the same address/
+		pointers = append(pointers, &value.slice[0])
+	}
+}
+
+func rangeValAddressArray() {
+	var pointers []*string
+	for _, value := range [][2]string{{"A", "B"}} {
+		pointers = append(pointers, &value[0]) // MATCH /suspicious assignment of 'value'. range-loop variables always have the same address/
+	}
+	for _, value := range []*[2]string{{"A", "B"}} {
+		pointers = append(pointers, &value[0])
+	}
+}
+
+func rangeValAddressPreDeclared() {
+	type v struct {
+		id string
+	}
+
+	var value v
+	var pointers []*string
+	for _, value = range []v{{id: "A"}} {
+		pointers = append(pointers, &value.id) // MATCH /suspicious assignment of 'value'. range-loop variables always have the same address/
+	}
+}

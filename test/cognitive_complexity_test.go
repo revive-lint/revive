@@ -16,3 +16,11 @@ func TestCognitiveComplexity(t *testing.T) {
 		Arguments: lint.Arguments{int64(0)},
 	})
 }
+
+func TestCognitiveComplexityConfigureResetsPreviousOptions(t *testing.T) {
+	r := &rule.CognitiveComplexityRule{}
+	testRule(t, "cognitive_complexity", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{int64(0)},
+	})
+	testRule(t, "cognitive_complexity_default", r)
+}

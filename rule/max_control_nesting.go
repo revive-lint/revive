@@ -70,6 +70,11 @@ func (w *lintMaxControlNesting) Visit(n ast.Node) ast.Visitor {
 		w.walkControlledBlock(v.Body)
 		return nil // stop re-visiting nesting blocks (already visited by w.walkControlledBlock)
 
+	case *ast.RangeStmt:
+		w.lastCtrlStmt = v
+		w.walkControlledBlock(v.Body)
+		return nil // stop re-visiting nesting blocks (already visited by w.walkControlledBlock)
+
 	case *ast.CaseClause: // switch case
 		w.lastCtrlStmt = v
 		for _, s := range v.Body { // visit each statement in the case clause

@@ -27,3 +27,11 @@ func TestUncheckedDynamicCastWithAcceptIgnored(t *testing.T) {
 		},
 	)
 }
+
+func TestUncheckedDynamicCastConfigureResetsPreviousConfiguration(t *testing.T) {
+	r := &rule.UncheckedTypeAssertionRule{}
+	testRule(t, "unchecked_type_assertion_accept_ignored", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{map[string]any{"acceptIgnoredAssertionResult": true}},
+	})
+	testRule(t, "unchecked_type_assertion", r)
+}

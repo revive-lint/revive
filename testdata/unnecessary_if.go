@@ -3,6 +3,7 @@ package fixtures
 func unnecessaryIf() bool {
 	var cond bool
 	var id bool
+	var other bool
 
 	// test return replacements
 	if cond { // MATCH /replace this conditional by: return cond/
@@ -147,6 +148,38 @@ func unnecessaryIf() bool {
 		id = true
 	} else {
 		id = false
+	}
+
+	// same value in both branches: no simplification possible
+	if cond {
+		return true
+	} else {
+		return true
+	}
+
+	if cond {
+		return false
+	} else {
+		return false
+	}
+
+	if cond {
+		id = true
+	} else {
+		id = true
+	}
+
+	if cond {
+		id = false
+	} else {
+		id = false
+	}
+
+	// different assignment tokens: := and = must not be conflated
+	if cond {
+		other := true
+	} else {
+		other = false
 	}
 
 	return id == id

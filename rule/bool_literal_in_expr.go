@@ -80,7 +80,7 @@ func isBoolOp(t token.Token) bool {
 	return false
 }
 
-func isExprABooleanLit(n ast.Node) (lexeme string, ok bool) {
+func isExprABooleanLit(n ast.Node) (string, bool) {
 	oper, ok := n.(*ast.Ident)
 
 	if !ok {

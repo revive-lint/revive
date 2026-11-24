@@ -19,7 +19,7 @@ func (*StringOfIntRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure 
 	}
 
 	astFile := file.AST
-	file.Pkg.TypeCheck()
+	file.Pkg.TypeCheck() //nolint:errcheck,gosec // G104: Errors unhandled
 
 	w := &lintStringInt{file, onFailure}
 	ast.Walk(w, astFile)

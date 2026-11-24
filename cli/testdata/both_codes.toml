@@ -1,0 +1,8 @@
+# bad.go yields a warning (package-comments) and an error (exported); error-code wins.
+warning-code = 3
+error-code = 5
+
+[rule.package-comments]
+
+[rule.exported]
+severity = "error"

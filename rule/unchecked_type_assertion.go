@@ -25,6 +25,8 @@ var _ lint.ConfigurableRule = (*UncheckedTypeAssertionRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *UncheckedTypeAssertionRule) Configure(arguments lint.Arguments) error {
+	r.acceptIgnoredAssertionResult = false
+
 	if len(arguments) == 0 {
 		return nil
 	}

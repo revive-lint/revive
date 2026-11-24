@@ -108,6 +108,15 @@ var _ lint.ConfigurableRule = (*PackageNamingRule)(nil)
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *PackageNamingRule) Configure(arguments lint.Arguments) error {
 	r.alreadyCheckedNames = syncset.New()
+	r.skipConventionNameCheck = false
+	r.conventionNameCheckRegex = nil
+	r.skipTopLevelCheck = false
+	r.skipDefaultBadNameCheck = false
+	r.checkExtraBadName = false
+	r.userDefinedBadNames = nil
+	r.skipCollisionWithCommonStd = false
+	r.checkCollisionWithAllStd = false
+	// allStdNames is not reset: its content does not depend on the configuration and loading it is expensive.
 
 	if len(arguments) == 0 {
 		return nil

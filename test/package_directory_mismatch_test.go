@@ -36,10 +36,10 @@ func TestPackageDirectoryMismatch(t *testing.T) {
 
 	// Test version directories (v1, v2, etc.)
 	testRule(t, "package_directory_mismatch/api/v1/api", &rule.PackageDirectoryMismatchRule{}, config)
-	testRule(t, "package_directory_mismatch/api/V1/api", &rule.PackageDirectoryMismatchRule{}, config)
-	testRule(t, "package_directory_mismatch/api/V1/api_test", &rule.PackageDirectoryMismatchRule{}, config)
 	testRule(t, "package_directory_mismatch/api/v1v/api", &rule.PackageDirectoryMismatchRule{}, config)
 	testRule(t, "package_directory_mismatch/api/v2/v2", &rule.PackageDirectoryMismatchRule{}, config)
+	testRule(t, "package_directory_mismatch/api/V3/api", &rule.PackageDirectoryMismatchRule{}, config)
+	testRule(t, "package_directory_mismatch/api/V3/api_test", &rule.PackageDirectoryMismatchRule{}, config)
 
 	// Test internal directory variations
 	testRule(t, "package_directory_mismatch/internal/good/good", &rule.PackageDirectoryMismatchRule{}, config)
@@ -78,10 +78,44 @@ func TestPackageDirectoryMismatchWithTestDirectories(t *testing.T) {
 	testRule(t, "package_directory_mismatch/testutils/good", &rule.PackageDirectoryMismatchRule{}, config)
 }
 
+func TestPackageDirectoryMismatchIgnoresWholePathComponents(t *testing.T) {
+	config := &lint.RuleConfig{Arguments: lint.Arguments{map[string]any{"ignore-directories": []any{"target"}}}}
+
+	// Ignored directory itself and its subdirectory.
+	testRule(t, "package_directory_mismatch/target/wrong", &rule.PackageDirectoryMismatchRule{}, config)
+	testRule(t, "package_directory_mismatch/target/nested/wrong", &rule.PackageDirectoryMismatchRule{}, config)
+	// Prefix, suffix and infix collisions are not ignored.
+	testRule(t, "package_directory_mismatch/targeted/wrong", &rule.PackageDirectoryMismatchRule{}, config)
+	testRule(t, "package_directory_mismatch/mytarget/wrong", &rule.PackageDirectoryMismatchRule{}, config)
+	testRule(t, "package_directory_mismatch/retargeted/wrong", &rule.PackageDirectoryMismatchRule{}, config)
+}
+
+func TestPackageDirectoryMismatchIgnoresMultiSegmentDirectories(t *testing.T) {
+	for _, entry := range []string{"internal/gen", "/internal/gen/"} {
+		config := &lint.RuleConfig{Arguments: lint.Arguments{map[string]any{"ignore-directories": []any{entry}}}}
+
+		testRule(t, "package_directory_mismatch/multi/internal/gen/wrong", &rule.PackageDirectoryMismatchRule{}, config)
+		testRule(t, "package_directory_mismatch/multi/internal/generated/wrong", &rule.PackageDirectoryMismatchRule{}, config)
+		// Segments must be adjacent.
+		testRule(t, "package_directory_mismatch/multi/internal/other/gen/wrong", &rule.PackageDirectoryMismatchRule{}, config)
+	}
+}
+
 func TestPackageDirectoryMismatchWithMultipleDirectories(t *testing.T) {
 	// Test with new named argument format that excludes both "testutils" and "testinfo"
 	config := &lint.RuleConfig{Arguments: lint.Arguments{map[string]any{"ignoreDirectories": []any{"testutils", "testinfo"}}}}
 
 	testRule(t, "package_directory_mismatch/testutils/good", &rule.PackageDirectoryMismatchRule{}, config)
 	testRule(t, "package_directory_mismatch/testinfo/good", &rule.PackageDirectoryMismatchRule{}, config)
+}
+
+func TestPackageDirectoryMismatchConfigureResetsPreviousConfiguration(t *testing.T) {
+	r := &rule.PackageDirectoryMismatchRule{}
+	testRule(t, "package_directory_mismatch/testinfo/good", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{map[string]any{"ignoreDirectories": []any{"testinfo"}}},
+	})
+	// An empty options map must not keep the previously ignored directories.
+	testRule(t, "package_directory_mismatch/testinfo/bad", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{map[string]any{}},
+	})
 }

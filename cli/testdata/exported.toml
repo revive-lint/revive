@@ -1,0 +1,2 @@
+# Enables only the exported rule, so package-comments does not report.
+[rule.exported]

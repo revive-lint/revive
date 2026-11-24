@@ -48,17 +48,13 @@ var _ lint.ConfigurableRule = (*StringFormatRule)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *StringFormatRule) Configure(arguments lint.Arguments) error {
+	r.rules = nil
 	for i, argument := range arguments {
-		scopes, regex, negated, errorMessage, err := r.parseArgument(argument, i)
+		subrule, err := r.parseArgument(argument, i)
 		if err != nil {
 			return err
 		}
-		r.rules = append(r.rules, stringFormatSubrule{
-			scopes:       scopes,
-			regexp:       regex,
-			negated:      negated,
-			errorMessage: errorMessage,
-		})
+		r.rules = append(r.rules, subrule)
 	}
 	return nil
 }
@@ -89,83 +85,84 @@ const identRegex = "[_A-Za-z][_A-Za-z0-9]*"
 var parseStringFormatScope = regexp.MustCompile(
 	fmt.Sprintf("^(%s(?:\\.%s)?)(?:\\[([0-9]+)\\](?:\\.(%s))?)?$", identRegex, identRegex, identRegex))
 
-//revive:disable-next-line:function-result-limit
-func (r *StringFormatRule) parseArgument(argument any, ruleNum int) (scopes stringFormatSubruleScopes, regex *regexp.Regexp, negated bool, errorMessage string, err error) {
+func (r *StringFormatRule) parseArgument(argument any, ruleNum int) (stringFormatSubrule, error) {
 	g, ok := argument.([]any) // Cast to generic slice first
 	if !ok {
-		return stringFormatSubruleScopes{}, regex, false, "", r.configError("argument is not a slice", ruleNum, 0)
+		return stringFormatSubrule{}, r.configError("argument is not a slice", ruleNum, 0)
 	}
 	if len(g) < 2 {
-		return stringFormatSubruleScopes{}, regex, false, "", r.configError("less than two slices found in argument, scope and regex are required", ruleNum, len(g)-1)
+		return stringFormatSubrule{}, r.configError("less than two slices found in argument, scope and regex are required", ruleNum, len(g)-1)
 	}
 	rule := make([]string, len(g))
 	for i, obj := range g {
 		val, ok := obj.(string)
 		if !ok {
-			return stringFormatSubruleScopes{}, regex, false, "", r.configError("unexpected value, string was expected", ruleNum, i)
+			return stringFormatSubrule{}, r.configError("unexpected value, string was expected", ruleNum, i)
 		}
 		rule[i] = val
 	}
 
 	// Validate scope and regex length
 	if rule[0] == "" {
-		return stringFormatSubruleScopes{}, regex, false, "", r.configError("empty scope provided", ruleNum, 0)
+		return stringFormatSubrule{}, r.configError("empty scope provided", ruleNum, 0)
 	} else if len(rule[1]) < 2 {
-		return stringFormatSubruleScopes{}, regex, false, "", r.configError("regex is too small (regexes should begin and end with '/')", ruleNum, 1)
+		return stringFormatSubrule{}, r.configError("regex is too small (regexes should begin and end with '/')", ruleNum, 1)
 	}
 
 	// Parse rule scopes
 	rawScopes := strings.Split(rule[0], ",")
 
-	scopes = make([]*stringFormatSubruleScope, 0, len(rawScopes))
+	subrule := stringFormatSubrule{
+		scopes: make([]*stringFormatSubruleScope, 0, len(rawScopes)),
+	}
 	for scopeNum, rawScope := range rawScopes {
 		rawScope = strings.TrimSpace(rawScope)
 
 		if rawScope == "" {
-			return stringFormatSubruleScopes{}, regex, false, "", r.parseScopeError("empty scope in rule scopes:", ruleNum, 0, scopeNum)
+			return stringFormatSubrule{}, r.parseScopeError("empty scope in rule scopes:", ruleNum, 0, scopeNum)
 		}
 
 		scope := stringFormatSubruleScope{}
 		matches := parseStringFormatScope.FindStringSubmatch(rawScope)
 		if matches == nil {
 			// The rule's scope didn't match the parsing regex at all, probably a configuration error
-			return stringFormatSubruleScopes{}, regex, false, "", r.parseScopeError("unable to parse rule scope", ruleNum, 0, scopeNum)
+			return stringFormatSubrule{}, r.parseScopeError("unable to parse rule scope", ruleNum, 0, scopeNum)
 		} else if len(matches) != 4 {
 			// The rule's scope matched the parsing regex, but an unexpected number of submatches was returned, probably a bug
-			return stringFormatSubruleScopes{}, regex, false, "",
-				r.parseScopeError(fmt.Sprintf("unexpected number of submatches when parsing scope: %d, expected 4", len(matches)), ruleNum, 0, scopeNum)
+			return stringFormatSubrule{}, r.parseScopeError(fmt.Sprintf("unexpected number of submatches when parsing scope: %d, expected 4", len(matches)), ruleNum, 0, scopeNum)
 		}
 		scope.funcName = matches[1]
 		if matches[2] != "" {
 			var err error
 			scope.argument, err = strconv.Atoi(matches[2])
 			if err != nil {
-				return stringFormatSubruleScopes{}, regex, false, "", r.parseScopeError("unable to parse argument number in rule scope", ruleNum, 0, scopeNum)
+				return stringFormatSubrule{}, r.parseScopeError("unable to parse argument number in rule scope", ruleNum, 0, scopeNum)
 			}
 		}
 		if matches[3] != "" {
 			scope.field = matches[3]
 		}
 
-		scopes = append(scopes, &scope)
+		subrule.scopes = append(subrule.scopes, &scope)
 	}
 
 	// Strip / characters from the beginning and end of rule[1] before compiling
-	negated = rule[1][0] == '!'
+	subrule.negated = rule[1][0] == '!'
 	offset := 1
-	if negated {
+	if subrule.negated {
 		offset++
 	}
-	regex, errr := regexp.Compile(rule[1][offset : len(rule[1])-1])
-	if errr != nil {
-		return stringFormatSubruleScopes{}, regex, false, "", r.parseError(fmt.Sprintf("unable to compile %s as regexp", rule[1]), ruleNum, 1)
+	sregexp, err := regexp.Compile(rule[1][offset : len(rule[1])-1])
+	if err != nil {
+		return stringFormatSubrule{}, r.parseError(fmt.Sprintf("unable to compile %s as regexp", rule[1]), ruleNum, 1)
 	}
+	subrule.regexp = sregexp
 
 	// Use custom error message if provided
 	if len(rule) == 3 {
-		errorMessage = rule[2]
+		subrule.errorMessage = rule[2]
 	}
-	return scopes, regex, negated, errorMessage, nil
+	return subrule, nil
 }
 
 // configError reports an invalid config, this is specifically the user's fault.
@@ -209,7 +206,7 @@ func (w *lintStringFormatRule) Visit(node ast.Node) ast.Visitor {
 }
 
 // getCallName returns the name of a call expression in the form of package.Func or Func.
-func (*lintStringFormatRule) getCallName(call *ast.CallExpr) (callName string, ok bool) {
+func (*lintStringFormatRule) getCallName(call *ast.CallExpr) (string, bool) {
 	if ident, ok := call.Fun.(*ast.Ident); ok {
 		// Local function call
 		return ident.Name, true

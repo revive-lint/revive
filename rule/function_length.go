@@ -3,7 +3,6 @@ package rule
 import (
 	"fmt"
 	"go/ast"
-	"reflect"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -20,10 +19,33 @@ var _ lint.ConfigurableRule = (*FunctionLength)(nil)
 //
 // Configuration implements the [lint.ConfigurableRule] interface.
 func (r *FunctionLength) Configure(arguments lint.Arguments) error {
-	maxStmt, maxLines, err := r.parseArguments(arguments)
-	if err != nil {
-		return err
+	if len(arguments) == 0 {
+		r.maxStmt = defaultFuncStmtsLimit
+		r.maxLines = defaultFuncLinesLimit
+		return nil
 	}
+
+	const minArguments = 2
+	if len(arguments) != minArguments {
+		return fmt.Errorf(`invalid configuration for "function-length" rule, expected %d arguments but got %d`, minArguments, len(arguments))
+	}
+
+	maxStmt, maxStmtOk := arguments[0].(int64)
+	if !maxStmtOk {
+		return fmt.Errorf(`invalid configuration value for max statements in "function-length" rule; need int64 but got %T`, arguments[0])
+	}
+	if maxStmt < 0 {
+		return fmt.Errorf(`the configuration value for max statements in "function-length" rule cannot be negative, got %d`, maxStmt)
+	}
+
+	maxLines, maxLinesOk := arguments[1].(int64)
+	if !maxLinesOk {
+		return fmt.Errorf(`invalid configuration value for max lines in "function-length" rule; need int64 but got %T`, arguments[1])
+	}
+	if maxLines < 0 {
+		return fmt.Errorf(`the configuration value for max lines in "function-length" rule cannot be negative, got %d`, maxLines)
+	}
+
 	r.maxStmt = int(maxStmt)
 	r.maxLines = int(maxLines)
 	return nil
@@ -41,7 +63,7 @@ func (r *FunctionLength) Apply(file *lint.File, _ lint.Arguments) []lint.Failure
 		body := funcDecl.Body
 		emptyBody := body == nil || len(body.List) == 0
 		if emptyBody {
-			return nil
+			continue
 		}
 
 		if r.maxStmt > 0 {
@@ -81,35 +103,6 @@ const (
 	defaultFuncStmtsLimit = 50
 	defaultFuncLinesLimit = 75
 )
-
-func (*FunctionLength) parseArguments(arguments lint.Arguments) (maxStmt, maxLines int64, err error) {
-	if len(arguments) == 0 {
-		return defaultFuncStmtsLimit, defaultFuncLinesLimit, nil
-	}
-
-	const minArguments = 2
-	if len(arguments) != minArguments {
-		return 0, 0, fmt.Errorf(`invalid configuration for "function-length" rule, expected %d arguments but got %d`, minArguments, len(arguments))
-	}
-
-	maxStmt, maxStmtOk := arguments[0].(int64)
-	if !maxStmtOk {
-		return 0, 0, fmt.Errorf(`invalid configuration value for max statements in "function-length" rule; need int64 but got %T`, arguments[0])
-	}
-	if maxStmt < 0 {
-		return 0, 0, fmt.Errorf(`the configuration value for max statements in "function-length" rule cannot be negative, got %d`, maxStmt)
-	}
-
-	maxLines, maxLinesOk := arguments[1].(int64)
-	if !maxLinesOk {
-		return 0, 0, fmt.Errorf(`invalid configuration value for max lines in "function-length" rule; need int64 but got %T`, arguments[1])
-	}
-	if maxLines < 0 {
-		return 0, 0, fmt.Errorf(`the configuration value for max statements in "function-length" rule cannot be negative, got %d`, maxLines)
-	}
-
-	return maxStmt, maxLines, nil
-}
 
 func (*FunctionLength) countLines(b *ast.BlockStmt, file *lint.File) int {
 	return file.ToPosition(b.End()).Line - file.ToPosition(b.Pos()).Line - 1
@@ -156,7 +149,22 @@ func (r *FunctionLength) countFuncLitStmts(stmt ast.Expr) int {
 	return 0
 }
 
-func (r *FunctionLength) countBodyListStmts(t any) int {
-	i := reflect.ValueOf(t).Elem().FieldByName(`Body`).Elem().FieldByName(`List`).Interface()
-	return r.countStmts(i.([]ast.Stmt))
+// countBodyListStmts counts the statements in the body of the given statement.
+func (r *FunctionLength) countBodyListStmts(stmt ast.Stmt) int {
+	switch stmt := stmt.(type) {
+	case *ast.IfStmt:
+		return r.countStmts(stmt.Body.List)
+	case *ast.ForStmt:
+		return r.countStmts(stmt.Body.List)
+	case *ast.RangeStmt:
+		return r.countStmts(stmt.Body.List)
+	case *ast.SwitchStmt:
+		return r.countStmts(stmt.Body.List)
+	case *ast.TypeSwitchStmt:
+		return r.countStmts(stmt.Body.List)
+	case *ast.SelectStmt:
+		return r.countStmts(stmt.Body.List)
+	default:
+		return 0
+	}
 }

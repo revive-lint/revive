@@ -1,0 +1,8 @@
+{
+  "name": "revive-tools-markdown-toc",
+  "private": true,
+  "description": "Pins markdown-toc, used to generate the tables of contents in the Markdown docs.",
+  "dependencies": {
+    "markdown-toc": "1.2.0"
+  }
+}

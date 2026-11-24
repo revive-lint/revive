@@ -1,6 +1,9 @@
 package fixtures
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
 type tt int
 
@@ -25,4 +28,9 @@ func deferrer1() {
 	recover() //MATCH /recover must be called inside a deferred function/
 
 	defer deferrer()
+}
+
+func exitAfterDefer() {
+	defer println("cleanup")
+	os.Exit(1) // MATCH /os.Exit after a defer statement prevents deferred calls from running/
 }

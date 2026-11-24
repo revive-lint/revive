@@ -28,3 +28,11 @@ func TestEnforceSliceStyle_nil(t *testing.T) {
 		Arguments: lint.Arguments{"nil"},
 	})
 }
+
+func TestEnforceSliceStyleConfigureResetsPreviousOptions(t *testing.T) {
+	r := &rule.EnforceSliceStyleRule{}
+	testRule(t, "enforce_slice_style_nil", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{"nil"},
+	})
+	testRule(t, "enforce_slice_style_any", r)
+}

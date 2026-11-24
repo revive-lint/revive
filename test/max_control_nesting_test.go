@@ -16,3 +16,17 @@ func TestMaxControlNesting(t *testing.T) {
 		Arguments: lint.Arguments{int64(2)},
 	})
 }
+
+func TestMaxControlNestingRange(t *testing.T) {
+	testRule(t, "max_control_nesting_range", &rule.MaxControlNestingRule{}, &lint.RuleConfig{
+		Arguments: lint.Arguments{int64(3)},
+	})
+}
+
+func TestMaxControlNestingConfigureResetsPreviousOptions(t *testing.T) {
+	r := &rule.MaxControlNestingRule{}
+	testRule(t, "max_control_nesting", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{int64(2)},
+	})
+	testRule(t, "max_control_nesting_default", r)
+}

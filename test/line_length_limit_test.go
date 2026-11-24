@@ -37,3 +37,9 @@ func TestLineLengthLimitExcludes(t *testing.T) {
 		}},
 	})
 }
+
+func TestLineLengthLimitLongLine(t *testing.T) {
+	testRule(t, "line_length_limit_long_line", &rule.LineLengthLimitRule{}, &lint.RuleConfig{
+		Arguments: lint.Arguments{int64(100)},
+	})
+}

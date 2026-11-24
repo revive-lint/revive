@@ -58,7 +58,7 @@ var commonMethods = map[string]bool{
 	"Error":     true,
 	"Read":      true,
 	"ServeHTTP": true,
-	"String":    true,
+	"String":    true, //nolint:usestdlibvars // "String" can be replaced by constant.String.String()
 	"Write":     true,
 	"Unwrap":    true,
 }
@@ -413,13 +413,13 @@ func (w *lintExported) checkGoDocStatus(comment *ast.CommentGroup, name string) 
 // An "interesting line" is a comment line that is neither a directive (e.g. `//go:...`) or a deprecation comment
 // (lines from the first line with a prefix `// Deprecated:` to the end of the comment group).
 // Empty or spaces-only lines are discarded.
-func (*lintExported) firstCommentLine(comment *ast.CommentGroup) (result string) {
+func (*lintExported) firstCommentLine(comment *ast.CommentGroup) string {
 	if comment == nil {
 		return ""
 	}
 
 	commentWithoutDirectives := comment.Text() // removes directives from the comment block
-	for line := range strings.SplitSeq(commentWithoutDirectives, "\n") {
+	for line := range strings.Lines(commentWithoutDirectives) {
 		line := strings.TrimSpace(line)
 		if line == "" {
 			continue // ignore empty lines
@@ -428,11 +428,10 @@ func (*lintExported) firstCommentLine(comment *ast.CommentGroup) (result string)
 			break // ignore deprecation comment line and the subsequent lines of the original comment
 		}
 
-		result = line
-		break // first non-directive/non-empty/non-deprecation comment line found
+		return line
 	}
 
-	return result
+	return ""
 }
 
 func (w *lintExported) Visit(n ast.Node) ast.Visitor {

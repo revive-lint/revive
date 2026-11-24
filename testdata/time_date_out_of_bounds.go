@@ -144,3 +144,9 @@ var (
 		+-+-+6,
 		time.UTC)
 )
+
+// values that do not fit in an int (math.MaxInt + 1) are ignored
+var (
+	_ = time.Date(9223372036854775808, 2, 29, 3, 4, 5, 0, time.UTC)
+	_ = time.Date(2023, 1, 2, 3, 4, 5, 9223372036854775808, time.UTC)
+)

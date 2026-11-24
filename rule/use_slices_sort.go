@@ -45,8 +45,8 @@ func (w lintSort) Visit(n ast.Node) ast.Visitor {
 		return w // not a function call
 	}
 
-	isCallToSort, sortMethod, sliceMethod := findCallToSortReplacement(funcCall.Fun)
-	if !isCallToSort {
+	sortMethod, sliceMethod, found := sortReplacement(funcCall.Fun)
+	if !found {
 		return w
 	}
 
@@ -60,18 +60,17 @@ func (w lintSort) Visit(n ast.Node) ast.Visitor {
 	return nil
 }
 
-// findCallToSortReplacement returns true if the given function call is a call to a sort method that
-// can be replaced with a call to a slices package method, false otherwise.
-// Alongside with the boolean, the function returns the sort method name and the name of its
-// replacement method from the slices package.
-func findCallToSortReplacement(expr ast.Expr) (isCallToSort bool, sortMethod, slicesMethod string) {
+// sortReplacement returns the name of the given sort method and the name of its replacement method
+// from the slices package, and true if the given function call is a call to a sort method that can be replaced.
+// Otherwise it returns empty names and false.
+func sortReplacement(expr ast.Expr) (sortMethod, slicesMethod string, ok bool) { //nolint:nonamedreturns // names are used for clarity
 	sel, ok := expr.(*ast.SelectorExpr)
 	if !ok {
-		return false, "", ""
+		return "", "", false
 	}
 
 	if !astutils.IsIdent(sel.X, "sort") {
-		return false, "", ""
+		return "", "", false
 	}
 
 	sortMethod = sel.Sel.Name
@@ -87,8 +86,8 @@ func findCallToSortReplacement(expr ast.Expr) (isCallToSort bool, sortMethod, sl
 	case "IsSorted", "SliceIsSorted":
 		slicesMethod = "IsSortedFunc"
 	default:
-		return false, "", ""
+		return "", "", false
 	}
 
-	return true, sortMethod, slicesMethod
+	return sortMethod, slicesMethod, true
 }

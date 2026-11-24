@@ -1,0 +1,5 @@
+# Failures with error severity exit with error-code.
+error-code = 5
+
+[rule.exported]
+severity = "error"

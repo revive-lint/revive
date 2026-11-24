@@ -52,7 +52,7 @@ var commonInitialisms = map[string]bool{
 }
 
 // Name returns a different name of struct, var, const, or function if it should be different.
-func Name(name string, allowlist, blocklist []string, skipInitialismNameChecks bool) (should string) {
+func Name(name string, allowlist, blocklist []string, skipInitialismNameChecks bool) string {
 	// Fast path for simple cases: "_" and all lowercase.
 	if name == "_" {
 		return name

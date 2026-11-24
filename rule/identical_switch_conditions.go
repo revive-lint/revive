@@ -55,7 +55,11 @@ func (w *lintIdenticalSwitchConditions) Visit(node ast.Node) ast.Visitor {
 
 	hashes := map[string]int{} // map hash(condition code) -> condition line
 	for _, cc := range switchStmt.Body.List {
-		caseClause := cc.(*ast.CaseClause)
+		caseClause, ok := cc.(*ast.CaseClause)
+		if !ok {
+			continue
+		}
+
 		caseClauseLine := w.toPosition(caseClause.Pos()).Line
 		for _, expr := range caseClause.List {
 			hash := astutils.NodeHash(expr)

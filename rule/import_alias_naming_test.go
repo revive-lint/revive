@@ -51,7 +51,8 @@ func TestImportAliasNamingRule_Configure(t *testing.T) {
 		{
 			name:      "invalid string argument regex",
 			arguments: lint.Arguments{"["},
-			wantErr:   errors.New("invalid argument to the import-alias-naming allowRegexp rule. Expecting \"[\" to be a valid regular expression, got: error parsing regexp: missing closing ]: `[`"),
+			wantErr: errors.New(`invalid argument to the "allowRegex" option of the "import-alias-naming" rule. ` +
+				"Expecting \"[\" to be a valid regular expression, got: error parsing regexp: missing closing ]: `[`"),
 		},
 		{
 			name: "invalid map key",
@@ -67,21 +68,22 @@ func TestImportAliasNamingRule_Configure(t *testing.T) {
 			arguments: lint.Arguments{map[string]any{
 				"allowRegex": 123,
 			}},
-			wantErr: errors.New("invalid argument '123' for import-alias-naming allowRegexp rule. Expecting string, got int"),
+			wantErr: errors.New(`invalid argument '123' for the "allowRegex" option of the "import-alias-naming" rule. Expecting string, got int`),
 		},
 		{
 			name: "invalid denyRegex type",
 			arguments: lint.Arguments{map[string]any{
 				"denyRegex": 123,
 			}},
-			wantErr: errors.New("invalid argument '123' for import-alias-naming denyRegexp rule. Expecting string, got int"),
+			wantErr: errors.New(`invalid argument '123' for the "denyRegex" option of the "import-alias-naming" rule. Expecting string, got int`),
 		},
 		{
 			name: "invalid denyRegex regex",
 			arguments: lint.Arguments{map[string]any{
 				"denyRegex": "[",
 			}},
-			wantErr: errors.New(`invalid argument to the import-alias-naming denyRegexp rule. Expecting "[" to be a valid regular expression, got: error parsing regexp: missing closing ]: ` + "`[`"),
+			wantErr: errors.New(`invalid argument to the "denyRegex" option of the "import-alias-naming" rule. ` +
+				"Expecting \"[\" to be a valid regular expression, got: error parsing regexp: missing closing ]: `[`"),
 		},
 	}
 

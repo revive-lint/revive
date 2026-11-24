@@ -126,6 +126,7 @@ var allRules = append([]lint.Rule{
 	&rule.PackageNamingRule{},
 	&rule.MultilineIfInitRule{},
 	&rule.MarshalReceiverRule{},
+	&rule.UseNewRule{},
 }, defaultRules...)
 
 // AllRules returns a copy of the list of all rules registered in revive.
@@ -152,7 +153,7 @@ func EnabledRules(config *lint.Config) []lint.Rule {
 		if c.Disabled {
 			continue
 		}
-		if r, ok := rulesByName[actualRuleName(name)]; ok {
+		if r, ok := rulesByName[name]; ok {
 			rules = append(rules, r)
 		}
 	}
@@ -181,6 +182,12 @@ func getFormatters() map[string]lint.Formatter {
 	return result
 }
 
+// renamedRules maps the former name of a renamed rule to its current name,
+// to report a configuration using an obsolete name instead of silently ignoring it.
+var renamedRules = map[string]string{
+	"imports-blacklist": "imports-blocklist", // renamed in v1.3.7
+}
+
 // GetLintingRules yields the linting rules that must be applied by the linter.
 func GetLintingRules(config *lint.Config, extraRules []lint.Rule) ([]lint.Rule, error) {
 	rulesMap := map[string]lint.Rule{}
@@ -196,9 +203,11 @@ func GetLintingRules(config *lint.Config, extraRules []lint.Rule) ([]lint.Rule, 
 
 	var lintingRules []lint.Rule
 	for name, ruleConfig := range config.Rules {
-		actualName := actualRuleName(name)
-		r, ok := rulesMap[actualName]
+		r, ok := rulesMap[name]
 		if !ok {
+			if newName, renamed := renamedRules[name]; renamed {
+				return nil, fmt.Errorf("rule %q was renamed to %q, update the configuration", name, newName)
+			}
 			return nil, fmt.Errorf("cannot find rule: %s", name)
 		}
 
@@ -216,15 +225,6 @@ func GetLintingRules(config *lint.Config, extraRules []lint.Rule) ([]lint.Rule, 
 	}
 
 	return lintingRules, nil
-}
-
-func actualRuleName(name string) string {
-	switch name {
-	case "imports-blacklist":
-		return "imports-blocklist"
-	default:
-		return name
-	}
 }
 
 func parseConfig(data []byte, config *lint.Config) error {

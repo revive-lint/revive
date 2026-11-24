@@ -118,7 +118,7 @@ func (w *lintRedefinesBuiltinID) Visit(node ast.Node) ast.Visitor {
 				return nil
 			}
 			id := typeSpec.Name.Name
-			if ok, bt := w.isBuiltIn(id); ok {
+			if bt := w.builtInKind(id); bt != "" {
 				w.addFailure(n, fmt.Sprintf("redefinition of the built-in %s %s", bt, id))
 			}
 		case token.VAR, token.CONST:
@@ -128,7 +128,7 @@ func (w *lintRedefinesBuiltinID) Visit(node ast.Node) ast.Visitor {
 					continue
 				}
 				for _, name := range valSpec.Names {
-					if ok, bt := w.isBuiltIn(name.Name); ok {
+					if bt := w.builtInKind(name.Name); bt != "" {
 						w.addFailure(n, fmt.Sprintf("redefinition of the built-in %s %s", bt, name))
 					}
 				}
@@ -143,7 +143,7 @@ func (w *lintRedefinesBuiltinID) Visit(node ast.Node) ast.Visitor {
 		}
 
 		id := n.Name.Name
-		if ok, bt := w.isBuiltIn(id); ok {
+		if bt := w.builtInKind(id); bt != "" {
 			w.addFailure(n, fmt.Sprintf("redefinition of the built-in %s %s", bt, id))
 		}
 	case *ast.FuncType:
@@ -166,7 +166,7 @@ func (w *lintRedefinesBuiltinID) Visit(node ast.Node) ast.Visitor {
 				}
 
 				id := obj.Name
-				if ok, bt := w.isBuiltIn(id); ok {
+				if bt := w.builtInKind(id); bt != "" {
 					w.addFailure(name, fmt.Sprintf("redefinition of the built-in %s %s", bt, id))
 				}
 			}
@@ -178,7 +178,7 @@ func (w *lintRedefinesBuiltinID) Visit(node ast.Node) ast.Visitor {
 				continue
 			}
 
-			if ok, bt := w.isBuiltIn(id.Name); ok {
+			if bt := w.builtInKind(id.Name); bt != "" {
 				var msg string
 				switch bt {
 				case "constant or variable":
@@ -208,18 +208,18 @@ func (w *lintRedefinesBuiltinID) addFailure(node ast.Node, msg string) {
 	})
 }
 
-func (w *lintRedefinesBuiltinID) isBuiltIn(id string) (r bool, builtInKind string) {
+func (w *lintRedefinesBuiltinID) builtInKind(id string) string {
 	if w.builtFunctions[id] {
-		return true, "function"
+		return "function"
 	}
 
 	if w.builtInConstAndVars[id] {
-		return true, "constant or variable"
+		return "constant or variable"
 	}
 
 	if w.builtInTypes[id] {
-		return true, "type"
+		return "type"
 	}
 
-	return false, ""
+	return ""
 }

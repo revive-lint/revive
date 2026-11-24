@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"strings"
+	"go/types"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -27,7 +27,7 @@ func (*RangeValAddress) Apply(file *lint.File, _ lint.Arguments) []lint.Failure 
 		},
 	}
 
-	file.Pkg.TypeCheck()
+	file.Pkg.TypeCheck() //nolint:errcheck,gosec // G104: Errors unhandled
 	ast.Walk(walker, file.AST)
 
 	return failures
@@ -54,24 +54,25 @@ func (w rangeValAddress) Visit(node ast.Node) ast.Visitor {
 		return w
 	}
 
-	valueIsStarExpr := false
-	if t := w.file.Pkg.TypeOf(value); t != nil {
-		valueIsStarExpr = strings.HasPrefix(t.String(), "*")
+	info := w.file.Pkg.TypesInfo()
+	valueObj := info.ObjectOf(value)
+	if valueObj == nil {
+		return w
 	}
 
 	ast.Walk(rangeBodyVisitor{
-		valueIsStarExpr: valueIsStarExpr,
-		valueID:         value.Obj,
-		onFailure:       w.onFailure,
+		info:      info,
+		valueObj:  valueObj,
+		onFailure: w.onFailure,
 	}, n.Body)
 
 	return w
 }
 
 type rangeBodyVisitor struct {
-	valueIsStarExpr bool
-	valueID         *ast.Object //nolint:staticcheck // TODO: ast.Object is deprecated
-	onFailure       func(lint.Failure)
+	info      *types.Info
+	valueObj  types.Object
+	onFailure func(lint.Failure)
 }
 
 func (bw rangeBodyVisitor) Visit(node ast.Node) ast.Visitor {
@@ -129,32 +130,39 @@ func (bw rangeBodyVisitor) checkCompositeLit(comp *ast.CompositeLit) {
 
 func (bw rangeBodyVisitor) isAccessingRangeValueAddress(exp ast.Expr) bool {
 	u, ok := exp.(*ast.UnaryExpr)
-	if !ok {
+	if !ok || u.Op != token.AND {
 		return false
 	}
 
-	if u.Op != token.AND {
+	return bw.isStoredInRangeValue(u.X)
+}
+
+// isStoredInRangeValue reports whether expr denotes the range value itself or memory stored inline in it,
+// such as a struct field or an array element, as opposed to memory reached through a pointer.
+func (bw rangeBodyVisitor) isStoredInRangeValue(expr ast.Expr) bool {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return bw.info.Uses[e] == bw.valueObj
+	case *ast.ParenExpr:
+		return bw.isStoredInRangeValue(e.X)
+	case *ast.SelectorExpr:
+		sel, ok := bw.info.Selections[e]
+		if !ok || sel.Kind() != types.FieldVal || sel.Indirect() {
+			return false
+		}
+		return bw.isStoredInRangeValue(e.X)
+	case *ast.IndexExpr:
+		t := bw.info.TypeOf(e.X)
+		if t == nil {
+			return false
+		}
+		if _, ok := t.Underlying().(*types.Array); !ok {
+			return false
+		}
+		return bw.isStoredInRangeValue(e.X)
+	default:
 		return false
 	}
-
-	v, ok := u.X.(*ast.Ident)
-	if !ok {
-		var s *ast.SelectorExpr
-		s, ok = u.X.(*ast.SelectorExpr) // TODO: possible BUG: if it's `=` and not `:=`, it means that in the last return `ok` is always true
-		if !ok {
-			return false
-		}
-		v, ok = s.X.(*ast.Ident)
-		if !ok {
-			return false
-		}
-
-		if bw.valueIsStarExpr { // check type of value
-			return false
-		}
-	}
-
-	return ok && v.Obj == bw.valueID // TODO: ok is always true due to the previous TODO remark
 }
 
 func (bw rangeBodyVisitor) newFailure(node ast.Node) lint.Failure {
@@ -162,6 +170,6 @@ func (bw rangeBodyVisitor) newFailure(node ast.Node) lint.Failure {
 		Category:   lint.FailureCategoryLogic,
 		Node:       node,
 		Confidence: 1,
-		Failure:    fmt.Sprintf("suspicious assignment of '%s'. range-loop variables always have the same address", bw.valueID.Name),
+		Failure:    fmt.Sprintf("suspicious assignment of '%s'. range-loop variables always have the same address", bw.valueObj.Name()),
 	}
 }
